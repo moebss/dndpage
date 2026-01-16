@@ -37,12 +37,12 @@ async function callPerplexityAPI(systemPrompt, userMessage) {
         body: JSON.stringify({ systemPrompt, userMessage })
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'API-Fehler');
+        throw new Error(data.error || 'API-Fehler');
     }
 
-    const data = await response.json();
     return data.content;
 }
 
@@ -58,13 +58,13 @@ async function generateImageWithGemini(prompt) {
         body: JSON.stringify({ prompt })
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-        const error = await response.json();
-        console.error('Gemini Error:', error);
-        throw new Error(error.error || 'Gemini API-Fehler');
+        console.error('Gemini Error:', data);
+        throw new Error(data.error || 'Gemini API-Fehler');
     }
 
-    const data = await response.json();
     return data.imageUrl;
 }
 

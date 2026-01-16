@@ -15,7 +15,6 @@ export default async (req, res) => {
     const { prompt } = req.body;
 
     if (!process.env.GEMINI_API_KEY) {
-        console.log('No GEMINI_API_KEY configured');
         return res.status(200).json({ imageUrl: null });
     }
 
@@ -31,7 +30,7 @@ export default async (req, res) => {
                 body: JSON.stringify({
                     contents: [{
                         parts: [{
-                            text: `Generate a fantasy RPG illustration: ${prompt}. Digital art style, vibrant colors, detailed.`
+                            text: `Generate a fantasy RPG illustration: ${prompt}. Digital art style.`
                         }]
                     }],
                     generationConfig: {
@@ -41,12 +40,21 @@ export default async (req, res) => {
             }
         );
 
-        const data = await response.json();
-        console.log('Gemini response:', response.status, JSON.stringify(data).substring(0, 500));
+        // Get response as text first to handle large responses
+        const responseText = await response.text();
 
         if (!response.ok) {
-            console.error('Gemini Error:', data.error?.message || 'Unknown error');
-            return res.status(200).json({ imageUrl: null, debug: data.error?.message });
+            console.error('Gemini Error Status:', response.status);
+            return res.status(200).json({ imageUrl: null });
+        }
+
+        // Try to parse JSON
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('JSON Parse Error:', parseError.message);
+            return res.status(200).json({ imageUrl: null });
         }
 
         // Find image in response parts
@@ -55,7 +63,6 @@ export default async (req, res) => {
             if (part.inlineData) {
                 const { mimeType, data: imageData } = part.inlineData;
                 if (mimeType && imageData) {
-                    console.log('Image generated! MimeType:', mimeType);
                     return res.status(200).json({
                         imageUrl: `data:${mimeType};base64,${imageData}`
                     });
@@ -63,11 +70,10 @@ export default async (req, res) => {
             }
         }
 
-        console.log('No image in response, parts:', parts.length);
-        return res.status(200).json({ imageUrl: null, debug: 'No image in response' });
+        return res.status(200).json({ imageUrl: null });
 
     } catch (err) {
         console.error('Gemini Exception:', err.message);
-        return res.status(200).json({ imageUrl: null, debug: err.message });
+        return res.status(200).json({ imageUrl: null });
     }
 };

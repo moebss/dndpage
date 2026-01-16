@@ -279,11 +279,19 @@ Antworte NUR im folgenden JSON-Format, ohne zusätzlichen Text:
 
         const response = await callPerplexityAPI(systemPrompt, userMessage);
 
-        // Parse JSON from response
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error('Ungültiges Format von der API');
-
-        const char = JSON.parse(jsonMatch[0]);
+        // Robust parsing of JSON from response
+        let char;
+        try {
+            char = JSON.parse(response);
+        } catch (e) {
+            const startIdx = response.indexOf('{');
+            const endIdx = response.lastIndexOf('}');
+            if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) {
+                throw new Error('Kein JSON in Antwort gefunden');
+            }
+            const jsonStr = response.substring(startIdx, endIdx + 1);
+            char = JSON.parse(jsonStr);
+        }
 
         // Apply to form
         document.getElementById('charName').value = char.name;
@@ -618,11 +626,22 @@ Antworte im folgenden JSON-Format:
 
         const response = await callPerplexityAPI(systemPrompt, userMessage);
 
-        // Parse JSON
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error('Ungültiges Format');
+        // Find and parse JSON from response
+        let story;
+        try {
+            // Try direct parse first
+            story = JSON.parse(response);
+        } catch (e) {
+            // Try to extract JSON object
+            const startIdx = response.indexOf('{');
+            const endIdx = response.lastIndexOf('}');
+            if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) {
+                throw new Error('Kein JSON in Antwort gefunden');
+            }
+            const jsonStr = response.substring(startIdx, endIdx + 1);
+            story = JSON.parse(jsonStr);
+        }
 
-        const story = JSON.parse(jsonMatch[0]);
         story.genre = genre;
         story.tone = tone;
         story.length = length;

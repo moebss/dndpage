@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DnD Story Forge - Pen & Paper Web App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="dragon-icon">🐉</span>
+            <span class="brand-text">DnD Story Forge</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="#" data-page="landing" class="nav-link active">Start</a></li>
+            <li><a href="#" data-page="characters" class="nav-link">Charaktere</a></li>
+            <li><a href="#" data-page="stories" class="nav-link">Geschichten</a></li>
+            <li><a href="#" data-page="table" class="nav-link">Spieltisch</a></li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="app">
+        <!-- Landing Page -->
+        <section id="landing" class="page active">
+            <div class="hero">
+                <div class="hero-content">
+                    <h1 class="hero-title">Erschaffe deine Legende</h1>
+                    <p class="hero-subtitle">Der ultimative Begleiter für deine Pen & Paper Abenteuer. Erstelle
+                        Charaktere, generiere epische Geschichten und spiele mit Freunden.</p>
+                    <div class="hero-buttons">
+                        <button class="btn btn-primary btn-large" onclick="navigateTo('characters')">
+                            <span>⚔️</span> Charakter erstellen
+                        </button>
+                        <button class="btn btn-secondary btn-large" onclick="navigateTo('stories')">
+                            <span>📜</span> Geschichte generieren
+                        </button>
+                    </div>
+                </div>
+                <div class="hero-visual">
+                    <div class="floating-dice">🎲</div>
+                </div>
+            </div>
+
+            <div class="features">
+                <div class="feature-card" onclick="navigateTo('characters')">
+                    <div class="feature-icon">🧙‍♂️</div>
+                    <h3>Charaktergenerator</h3>
+                    <p>Erstelle einzigartige Helden und NPCs mit KI-generierten Hintergründen und Avataren.</p>
+                </div>
+                <div class="feature-card" onclick="navigateTo('stories')">
+                    <div class="feature-icon">📖</div>
+                    <h3>Story-Generator</h3>
+                    <p>Lass dir komplette Abenteuer generieren - von Intros bis zu dramatischen Höhepunkten.</p>
+                </div>
+                <div class="feature-card" onclick="navigateTo('table')">
+                    <div class="feature-icon">🎮</div>
+                    <h3>Virtueller Spieltisch</h3>
+                    <p>Spiele mit Freunden online. KI-Erzähler und dynamische Szenen-Generierung inklusive.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Characters Page -->
+        <section id="characters" class="page">
+            <div class="page-header">
+                <h1>Charaktergenerator</h1>
+                <p>Erschaffe legendäre Helden und unvergessliche NPCs</p>
+            </div>
+
+            <div class="characters-layout">
+                <!-- Character Form -->
+                <div class="character-form-panel">
+                    <div class="panel-header">
+                        <h2>Neuer Charakter</h2>
+                        <button class="btn btn-accent" onclick="generateRandomCharacter()">🎲 Zufällig</button>
+                    </div>
+
+                    <form id="characterForm" class="character-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Name</label>
+                                <input type="text" id="charName" placeholder="Thorin Eichenschild" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Typ</label>
+                                <div class="toggle-group">
+                                    <button type="button" class="toggle-btn active" data-value="pc"
+                                        onclick="setCharacterType('pc')">Spieler (PC)</button>
+                                    <button type="button" class="toggle-btn" data-value="npc"
+                                        onclick="setCharacterType('npc')">NPC</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Rasse</label>
+                                <select id="charRace">
+                                    <option value="mensch">Mensch</option>
+                                    <option value="elf">Elf</option>
+                                    <option value="zwerg">Zwerg</option>
+                                    <option value="ork">Ork</option>
+                                    <option value="halbling">Halbling</option>
+                                    <option value="tiefling">Tiefling</option>
+                                    <option value="dragonborn">Drachenblütiger</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Klasse</label>
+                                <select id="charClass">
+                                    <option value="krieger">Krieger</option>
+                                    <option value="magier">Magier</option>
+                                    <option value="schurke">Schurke</option>
+                                    <option value="kleriker">Kleriker</option>
+                                    <option value="waldläufer">Waldläufer</option>
+                                    <option value="barde">Barde</option>
+                                    <option value="paladin">Paladin</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Attributes -->
+                        <div class="attributes-section">
+                            <div class="section-header">
+                                <h3>Attribute</h3>
+                                <button type="button" class="btn btn-small" onclick="rollAttributes()">🎲
+                                    Würfeln</button>
+                            </div>
+                            <div class="attributes-grid">
+                                <div class="attribute-item">
+                                    <span class="attr-label">STR</span>
+                                    <div class="attr-bar">
+                                        <div class="attr-fill" id="strBar" style="width: 50%"></div>
+                                    </div>
+                                    <span class="attr-value" id="strVal">10</span>
+                                    <span class="attr-mod" id="strMod">(+0)</span>
+                                </div>
+                                <div class="attribute-item">
+                                    <span class="attr-label">DEX</span>
+                                    <div class="attr-bar">
+                                        <div class="attr-fill" id="dexBar" style="width: 50%"></div>
+                                    </div>
+                                    <span class="attr-value" id="dexVal">10</span>
+                                    <span class="attr-mod" id="dexMod">(+0)</span>
+                                </div>
+                                <div class="attribute-item">
+                                    <span class="attr-label">CON</span>
+                                    <div class="attr-bar">
+                                        <div class="attr-fill" id="conBar" style="width: 50%"></div>
+                                    </div>
+                                    <span class="attr-value" id="conVal">10</span>
+                                    <span class="attr-mod" id="conMod">(+0)</span>
+                                </div>
+                                <div class="attribute-item">
+                                    <span class="attr-label">INT</span>
+                                    <div class="attr-bar">
+                                        <div class="attr-fill" id="intBar" style="width: 50%"></div>
+                                    </div>
+                                    <span class="attr-value" id="intVal">10</span>
+                                    <span class="attr-mod" id="intMod">(+0)</span>
+                                </div>
+                                <div class="attribute-item">
+                                    <span class="attr-label">WIS</span>
+                                    <div class="attr-bar">
+                                        <div class="attr-fill" id="wisBar" style="width: 50%"></div>
+                                    </div>
+                                    <span class="attr-value" id="wisVal">10</span>
+                                    <span class="attr-mod" id="wisMod">(+0)</span>
+                                </div>
+                                <div class="attribute-item">
+                                    <span class="attr-label">CHA</span>
+                                    <div class="attr-bar">
+                                        <div class="attr-fill" id="chaBar" style="width: 50%"></div>
+                                    </div>
+                                    <span class="attr-value" id="chaVal">10</span>
+                                    <span class="attr-mod" id="chaMod">(+0)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Background -->
+                        <div class="form-group">
+                            <div class="label-row">
+                                <label>Hintergrundgeschichte</label>
+                                <button type="button" class="btn btn-small btn-accent" onclick="generateBackground()">✨
+                                    Generieren</button>
+                            </div>
+                            <textarea id="charBackground" rows="4"
+                                placeholder="Die tragische Vergangenheit deines Helden..."></textarea>
+                        </div>
+
+                        <!-- Avatar -->
+                        <div class="avatar-section">
+                            <div class="avatar-preview" id="avatarPreview">
+                                <span class="avatar-placeholder">👤</span>
+                            </div>
+                            <button type="button" class="btn btn-accent" onclick="generateAvatar()">🎨 Avatar
+                                generieren</button>
+                        </div>
+
+                        <!-- Inventory -->
+                        <div class="inventory-section">
+                            <h3>Inventar</h3>
+                            <div id="inventoryList" class="inventory-list">
+                                <div class="inventory-item">
+                                    <span>Schwert</span>
+                                    <span class="item-qty">1x</span>
+                                </div>
+                                <div class="inventory-item">
+                                    <span>Heiltrank</span>
+                                    <span class="item-qty">3x</span>
+                                </div>
+                            </div>
+                            <div class="add-item-row">
+                                <input type="text" id="newItemName" placeholder="Gegenstand...">
+                                <button type="button" class="btn btn-small" onclick="addInventoryItem()">+</button>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-full">💾 Charakter speichern</button>
+                    </form>
+                </div>
+
+                <!-- Character List -->
+                <div class="character-list-panel">
+                    <h2>Deine Charaktere</h2>
+                    <div id="characterList" class="character-grid">
+                        <!-- Characters will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stories Page -->
+        <section id="stories" class="page">
+            <div class="page-header">
+                <h1>Story-Generator</h1>
+                <p>Epische Abenteuer auf Knopfdruck</p>
+            </div>
+
+            <div class="stories-layout">
+                <div class="story-form-panel">
+                    <h2>Neue Geschichte</h2>
+                    <form id="storyForm" class="story-form">
+                        <div class="form-group">
+                            <label>Titel</label>
+                            <input type="text" id="storyTitle" placeholder="Die Schatten von Ravenloft">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Genre</label>
+                                <select id="storyGenre">
+                                    <option value="fantasy">High Fantasy</option>
+                                    <option value="dark-fantasy">Dark Fantasy</option>
+                                    <option value="horror">Horror</option>
+                                    <option value="mystery">Mysterium</option>
+                                    <option value="comedy">Komödie</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Ton</label>
+                                <select id="storyTone">
+                                    <option value="epic">Episch</option>
+                                    <option value="dark">Düster</option>
+                                    <option value="humorous">Humorvoll</option>
+                                    <option value="mysterious">Geheimnisvoll</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Länge</label>
+                            <select id="storyLength">
+                                <option value="oneshot">One-Shot (1 Session)</option>
+                                <option value="short">Kurzabenteuer (2-3 Sessions)</option>
+                                <option value="campaign">Kampagne (10+ Sessions)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Beteiligte Charaktere</label>
+                            <div id="storyCharacterSelect" class="character-select-grid">
+                                <!-- Character checkboxes -->
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-primary btn-full" onclick="generateStory()">✨ Geschichte
+                            generieren</button>
+                    </form>
+
+                    <!-- Generated Story Preview -->
+                    <div id="storyPreview" class="story-preview hidden">
+                        <h3>Generierte Geschichte</h3>
+                        <div class="story-content" id="storyContent"></div>
+                        <button class="btn btn-accent btn-full" onclick="saveStory()">💾 Geschichte speichern</button>
+                    </div>
+                </div>
+
+                <div class="story-list-panel">
+                    <h2>Gespeicherte Geschichten</h2>
+                    <div id="storyList" class="story-list">
+                        <!-- Stories will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Table Page -->
+        <section id="table" class="page">
+            <div class="table-layout">
+                <!-- Setup Panel -->
+                <div class="table-setup" id="tableSetup">
+                    <h2>🎲 Session einrichten</h2>
+                    <div class="form-group">
+                        <label>Geschichte auswählen</label>
+                        <select id="tableStorySelect">
+                            <option value="">-- Geschichte wählen --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Charaktere auswählen</label>
+                        <div id="tableCharacterSelect" class="character-select-list"></div>
+                    </div>
+                    <button class="btn btn-primary btn-full" onclick="startSession()">🎮 Session starten</button>
+                </div>
+
+                <!-- Game View -->
+                <div class="game-view hidden" id="gameView">
+                    <!-- Scene Panel -->
+                    <div class="scene-panel">
+                        <div class="scene-header">
+                            <h3>Aktuelle Szene</h3>
+                            <button class="btn btn-small btn-accent" onclick="updateScene()">🔄 Szene
+                                aktualisieren</button>
+                        </div>
+                        <div class="scene-image" id="sceneImage">
+                            <div class="scene-placeholder">🏰</div>
+                        </div>
+                        <div class="scene-description" id="sceneDescription">
+                            <p>Die Szene wird generiert, sobald du die Session startest...</p>
+                        </div>
+                    </div>
+
+                    <!-- Chat Panel -->
+                    <div class="chat-panel">
+                        <div class="chat-header">
+                            <h3>Spielchat</h3>
+                            <div class="active-characters" id="activeCharactersList"></div>
+                        </div>
+                        <div class="chat-messages" id="chatMessages">
+                            <!-- Messages will appear here -->
+                        </div>
+                        <div class="chat-input-area">
+                            <select id="chatSpeaker" class="chat-speaker-select">
+                                <option value="gm">🎭 Spielleiter</option>
+                            </select>
+                            <input type="text" id="chatInput" placeholder="Schreibe eine Nachricht..."
+                                onkeypress="handleChatKeypress(event)">
+                            <button class="btn btn-primary" onclick="sendChatMessage()">Senden</button>
+                        </div>
+                        <button class="btn btn-accent btn-full" onclick="narratorRespond()">🤖 KI-Erzähler antworten
+                            lassen</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>DnD Story Forge © 2026 | Erschaffen für Abenteurer</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

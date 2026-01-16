@@ -1,11 +1,11 @@
 /* ========================================
-   DnD Story Forge - JavaScript mit Backend API
+   DnD Story Forge - JavaScript mit Vercel Serverless Functions
    ======================================== */
 
 // ========================================
 // Configuration
 // ========================================
-const API_BASE_URL = 'http://localhost:4000/api';
+// API calls go to /api/ routes (handled by Vercel serverless functions)
 
 // ========================================
 // Data Storage (LocalStorage)
@@ -26,10 +26,10 @@ function saveData(key, data) {
 }
 
 // ========================================
-// Backend API Integration
+// Vercel Serverless API Integration
 // ========================================
 async function callPerplexityAPI(systemPrompt, userMessage) {
-    const response = await fetch(`${API_BASE_URL}/perplexity`, {
+    const response = await fetch('/api/perplexity', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -47,10 +47,10 @@ async function callPerplexityAPI(systemPrompt, userMessage) {
 }
 
 // ========================================
-// Gemini Image Generation (via Backend)
+// Gemini Image Generation (via Vercel)
 // ========================================
 async function generateImageWithGemini(prompt) {
-    const response = await fetch(`${API_BASE_URL}/gemini/image`, {
+    const response = await fetch('/api/gemini', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

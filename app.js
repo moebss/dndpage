@@ -361,23 +361,10 @@ function generateRandomCharacterLocal() {
 }
 
 function generateAvatarEmoji() {
-    const race = document.getElementById('charRace').value;
-    const charClass = document.getElementById('charClass').value;
-
-    const avatarEmojis = {
-        mensch: { krieger: '⚔️🧔', magier: '🧙‍♂️', schurke: '🗡️🥷', kleriker: '⛪✨', waldläufer: '🏹🌲', barde: '🎸🎭', paladin: '🛡️✝️' },
-        elf: { krieger: '🧝⚔️', magier: '🧝‍♀️✨', schurke: '🧝🗡️', kleriker: '🧝‍♀️🌟', waldläufer: '🧝🏹', barde: '🧝🎵', paladin: '🧝🛡️' },
-        zwerg: { krieger: '🪓🧔', magier: '📿🧔', schurke: '💎🧔', kleriker: '⛏️🌟', waldläufer: '🏔️🧔', barde: '🍺🎵', paladin: '🛡️🪓' },
-        ork: { krieger: '👹⚔️', magier: '👹🔮', schurke: '👹🗡️', kleriker: '👹☠️', waldläufer: '👹🏹', barde: '👹🥁', paladin: '👹🛡️' },
-        halbling: { krieger: '🍀⚔️', magier: '🍀✨', schurke: '🍀🗡️', kleriker: '🍀🌟', waldläufer: '🍀🏹', barde: '🍀🎵', paladin: '🍀🛡️' },
-        tiefling: { krieger: '😈⚔️', magier: '😈🔥', schurke: '😈🗡️', kleriker: '😈✨', waldläufer: '😈🏹', barde: '😈🎭', paladin: '😈⚖️' },
-        dragonborn: { krieger: '🐲⚔️', magier: '🐲🔥', schurke: '🐲🗡️', kleriker: '🐲✨', waldläufer: '🐲🏹', barde: '🐲🎵', paladin: '🐲🛡️' }
-    };
-
-    const emoji = avatarEmojis[race]?.[charClass] || '🧙‍♂️';
     const preview = document.getElementById('avatarPreview');
-    preview.innerHTML = `<span style="font-size: 3rem;">${emoji}</span>`;
-    currentCharacter.avatar = emoji;
+    preview.innerHTML = `<div style="font-size: 3rem; color: var(--color-text-muted); opacity: 0.3;">👤</div>`;
+    currentCharacter.avatarType = 'placeholder';
+    currentCharacter.avatar = null;
 }
 
 // AI-Powered Avatar Generation with Gemini
@@ -403,13 +390,11 @@ async function generateAvatar() {
             currentCharacter.avatarType = 'image';
             showNotification('Avatar generiert! 🎨');
         } else {
-            generateAvatarEmoji();
-            showNotification('Bild konnte nicht generiert werden - Emoji verwendet', 'info');
+            showNotification('Bild konnte nicht generiert werden.', 'warning');
         }
     } catch (error) {
         console.error('Avatar generation error:', error);
-        generateAvatarEmoji();
-        showNotification('Fehler: ' + error.message + ' - Emoji verwendet', 'error');
+        showNotification('Fehler bei der Bildgenerierung: ' + error.message, 'error');
     } finally {
         showLoading(btn, false);
         btn.textContent = '🎨 Avatar generieren';
@@ -892,19 +877,7 @@ function updateSceneDisplay() {
         ${gameSession.currentScene.challenge ? `<p style="margin-top: 8px; color: var(--color-accent);"><strong>Herausforderung:</strong> ${gameSession.currentScene.challenge}</p>` : ''}
     `;
 
-    const sceneEmojis = {
-        'taverne': '🍺', 'wald': '🌲', 'ruine': '🏚️', 'tempel': '⛪', 'kampf': '⚔️',
-        'dunkel': '🌑', 'schiff': '🚢', 'höhle': '🕳️', 'berg': '🏔️', 'stadt': '🏰',
-        'markt': '🏪', 'schloss': '🏯', 'friedhof': '⚰️', 'strand': '🏖️', default: '🎭'
-    };
-
-    const title = (gameSession.currentScene.title || '').toLowerCase();
-    let emoji = sceneEmojis.default;
-    for (const [key, value] of Object.entries(sceneEmojis)) {
-        if (title.includes(key)) { emoji = value; break; }
-    }
-
-    document.getElementById('sceneImage').innerHTML = `<span class="scene-placeholder">${emoji}</span>`;
+    document.getElementById('sceneImage').innerHTML = `<div class="scene-placeholder">✨</div>`;
 
     // Try to generate scene image with Gemini
     generateSceneImage();
@@ -919,33 +892,19 @@ async function generateSceneImage() {
 
     const prompt = `Fantasy RPG scene: ${scene.title}. ${scene.description}. Atmospheric, detailed environment, fantasy art style, dramatic lighting, no text.`;
 
-    // Helper to get emoji fallback
-    const getSceneEmoji = () => {
-        const sceneEmojis = {
-            'taverne': '🍺', 'wald': '🌲', 'ruine': '🏚️', 'tempel': '⛪', 'kampf': '⚔️',
-            'dunkel': '🌑', 'schiff': '🚢', 'höhle': '🕳️', 'berg': '🏔️', 'stadt': '🏰', default: '🎭'
-        };
-        const title = (scene.title || '').toLowerCase();
-        let emoji = sceneEmojis.default;
-        for (const [key, value] of Object.entries(sceneEmojis)) {
-            if (title.includes(key)) { emoji = value; break; }
-        }
-        return emoji;
-    };
-
-    // Set emoji fallback
-    const showEmojiFallback = () => {
-        sceneContainer.innerHTML = `<span class="scene-placeholder">${getSceneEmoji()}</span>`;
+    // Set fallback (blank)
+    const showFallback = () => {
+        sceneContainer.innerHTML = `<div class="scene-placeholder">🖼️</div>`;
     };
 
     // Show loading state
     sceneContainer.innerHTML = `<div class="scene-loading"><span>🎨</span><p>Generiere Szenenbild...</p></div>`;
 
-    // Timeout after 5 seconds - show emoji instead
+    // Timeout after 8 seconds - show fallback instead
     const timeoutId = setTimeout(() => {
-        console.log('Scene image timeout - using emoji fallback');
-        showEmojiFallback();
-    }, 5000);
+        console.log('Scene image timeout');
+        showFallback();
+    }, 8000);
 
     try {
         const imageUrl = await generateImageWithGemini(prompt);
@@ -954,12 +913,12 @@ async function generateSceneImage() {
         if (imageUrl) {
             sceneContainer.innerHTML = `<img src="${imageUrl}" alt="Szene" style="width: 100%; height: 100%; object-fit: cover;">`;
         } else {
-            showEmojiFallback();
+            showFallback();
         }
     } catch (error) {
         clearTimeout(timeoutId);
         console.error('Scene image error:', error);
-        showEmojiFallback();
+        showFallback();
     }
 }
 

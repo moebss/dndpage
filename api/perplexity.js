@@ -36,8 +36,9 @@ export default async (req, res) => {
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: userMessage }
                 ],
-                max_tokens: 1024,
-                temperature: 0.8
+                max_tokens: 4000,
+                temperature: 0.8,
+                response_format: { type: "json_object" }
             })
         });
 

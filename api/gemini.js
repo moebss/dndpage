@@ -1,5 +1,5 @@
 export default async (req, res) => {
-    // CORS Header
+    // CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -9,29 +9,31 @@ export default async (req, res) => {
     }
 
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Nur POST-Anfragen sind erlaubt' });
-    }
-
-    const { prompt } = req.body;
-
-    if (!process.env.GEMINI_API_KEY) {
-        return res.status(200).json({ imageUrl: null });
+        return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
-        // Gemini 2.0 Flash with native image generation
+        const { prompt } = req.body || {};
+
+        if (!prompt) {
+            return res.status(200).json({ imageUrl: null, error: 'No prompt provided' });
+        }
+
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            console.log('GEMINI_API_KEY not set');
+            return res.status(200).json({ imageUrl: null, error: 'GEMINI_API_KEY not configured' });
+        }
+
+        // Gemini 2.0 Flash with image generation
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${process.env.GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
             {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{
-                        parts: [{
-                            text: `Generate a fantasy RPG illustration: ${prompt}. Digital art style.`
-                        }]
+                        parts: [{ text: `Create a fantasy RPG illustration: ${prompt}` }]
                     }],
                     generationConfig: {
                         responseModalities: ["image", "text"]
@@ -40,40 +42,37 @@ export default async (req, res) => {
             }
         );
 
-        // Get response as text first to handle large responses
-        const responseText = await response.text();
+        const text = await response.text();
 
         if (!response.ok) {
-            console.error('Gemini Error Status:', response.status);
+            console.error('Gemini HTTP error:', response.status, text.substring(0, 300));
             return res.status(200).json({ imageUrl: null });
         }
 
-        // Try to parse JSON
         let data;
         try {
-            data = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('JSON Parse Error:', parseError.message);
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('Gemini JSON parse error');
             return res.status(200).json({ imageUrl: null });
         }
 
-        // Find image in response parts
+        // Look for image data
         const parts = data.candidates?.[0]?.content?.parts || [];
         for (const part of parts) {
-            if (part.inlineData) {
-                const { mimeType, data: imageData } = part.inlineData;
-                if (mimeType && imageData) {
-                    return res.status(200).json({
-                        imageUrl: `data:${mimeType};base64,${imageData}`
-                    });
-                }
+            if (part.inlineData?.data && part.inlineData?.mimeType) {
+                return res.status(200).json({
+                    imageUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
+                });
             }
         }
 
+        // No image found
+        console.log('No image in Gemini response');
         return res.status(200).json({ imageUrl: null });
 
     } catch (err) {
-        console.error('Gemini Exception:', err.message);
+        console.error('Gemini exception:', err.message);
         return res.status(200).json({ imageUrl: null });
     }
 };

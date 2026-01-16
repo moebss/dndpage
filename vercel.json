@@ -1,7 +1,12 @@
 {
-    "functions": {
-        "api/*.js": {
-            "runtime": "@vercel/node@3"
+    "rewrites": [
+        {
+            "source": "/api/perplexity",
+            "destination": "/api/perplexity.js"
+        },
+        {
+            "source": "/api/gemini",
+            "destination": "/api/gemini.js"
         }
-    }
+    ]
 }

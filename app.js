@@ -1,6 +1,12 @@
 /* ========================================
-   DnD Story Forge - JavaScript
+   DnD Story Forge - JavaScript mit Perplexity AI
    ======================================== */
+
+// ========================================
+// Configuration
+// ========================================
+const PERPLEXITY_API_URL = 'https://api.perplexity.ai/chat/completions';
+const PERPLEXITY_MODEL = 'llama-3.1-sonar-small-128k-online';
 
 // ========================================
 // Data Storage (LocalStorage)
@@ -8,7 +14,8 @@
 const STORAGE_KEYS = {
     characters: 'dnd_characters',
     stories: 'dnd_stories',
-    session: 'dnd_session'
+    session: 'dnd_session',
+    apiKey: 'dnd_api_key'
 };
 
 function getData(key) {
@@ -20,11 +27,54 @@ function saveData(key, data) {
     localStorage.setItem(key, JSON.stringify(data));
 }
 
+function getApiKey() {
+    return localStorage.getItem(STORAGE_KEYS.apiKey) || '';
+}
+
+function saveApiKey(key) {
+    localStorage.setItem(STORAGE_KEYS.apiKey, key);
+}
+
+// ========================================
+// Perplexity API Integration
+// ========================================
+async function callPerplexityAPI(systemPrompt, userMessage) {
+    const apiKey = getApiKey();
+
+    if (!apiKey) {
+        throw new Error('Kein API-Key hinterlegt. Bitte gehe in die Einstellungen.');
+    }
+
+    const response = await fetch(PERPLEXITY_API_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: PERPLEXITY_MODEL,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userMessage }
+            ],
+            max_tokens: 1024,
+            temperature: 0.8
+        })
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'API-Fehler');
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+}
+
 // ========================================
 // Navigation
 // ========================================
 function navigateTo(pageName) {
-    // Update nav links
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.remove('active');
         if (link.dataset.page === pageName) {
@@ -32,13 +82,11 @@ function navigateTo(pageName) {
         }
     });
 
-    // Show/hide pages
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
     });
     document.getElementById(pageName).classList.add('active');
 
-    // Refresh data on page load
     if (pageName === 'characters') {
         renderCharacterList();
     } else if (pageName === 'stories') {
@@ -49,13 +97,54 @@ function navigateTo(pageName) {
     }
 }
 
-// Navigation click handlers
 document.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', (e) => {
         e.preventDefault();
         navigateTo(link.dataset.page);
     });
 });
+
+// ========================================
+// Settings Modal
+// ========================================
+function openSettings() {
+    document.getElementById('settingsModal').classList.remove('hidden');
+    document.getElementById('apiKeyInput').value = getApiKey();
+}
+
+function closeSettings() {
+    document.getElementById('settingsModal').classList.add('hidden');
+}
+
+function saveSettings() {
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    saveApiKey(apiKey);
+    closeSettings();
+    showNotification('Einstellungen gespeichert! ✅');
+}
+
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    setTimeout(() => notification.classList.add('show'), 10);
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+function showLoading(element, show = true) {
+    if (show) {
+        element.classList.add('loading');
+        element.disabled = true;
+    } else {
+        element.classList.remove('loading');
+        element.disabled = false;
+    }
+}
 
 // ========================================
 // Character System
@@ -75,27 +164,25 @@ let currentCharacter = {
     ]
 };
 
-// Random Name Generator
-const namesByRace = {
-    mensch: ['Aldric', 'Elara', 'Marcus', 'Lydia', 'Thorin', 'Mira', 'Cedric', 'Helena'],
-    elf: ['Aelindor', 'Lirael', 'Thalion', 'Elowen', 'Faelar', 'Ithilwen', 'Aerith', 'Caelum'],
-    zwerg: ['Durin', 'Helga', 'Thorak', 'Bruni', 'Gimrak', 'Hilda', 'Bofur', 'Disa'],
-    ork: ['Grakk', 'Urga', 'Thok', 'Mogra', 'Zulgash', 'Shara', 'Goruk', 'Nazga'],
-    halbling: ['Bilbo', 'Rosie', 'Merry', 'Poppy', 'Pippin', 'Daisy', 'Samwell', 'Lily'],
-    tiefling: ['Morthos', 'Lilith', 'Zariel', 'Nyx', 'Damien', 'Seraphina', 'Malachar', 'Ravenna'],
-    dragonborn: ['Rhogar', 'Sora', 'Torinn', 'Mishann', 'Bharash', 'Kava', 'Nadarr', 'Jheri']
+const raceNames = {
+    mensch: 'Mensch',
+    elf: 'Elf',
+    zwerg: 'Zwerg',
+    ork: 'Ork',
+    halbling: 'Halbling',
+    tiefling: 'Tiefling',
+    dragonborn: 'Drachenblütiger'
 };
 
-const backgrounds = [
-    'wurde in einem kleinen Dorf geboren, das von einer Drachenseuche heimgesucht wurde. Als einziger Überlebender schwor er/sie Rache.',
-    'wuchs als Waisenkind in den Straßen einer großen Stadt auf und lernte früh, sich durchzuschlagen.',
-    'entstammt einer alten Adelsfamilie, die durch Verrat alles verlor. Nun sucht er/sie nach Vergeltung.',
-    'war einst ein angesehener Gelehrter, bis ein fehlgeschlagenes Experiment alles veränderte.',
-    'diente jahrelang als Soldat in den großen Kriegen und trägt die Narben der Schlacht.',
-    'wurde von einer mysteriösen Prophezeiung verfolgt, die sein/ihr Schicksal zu bestimmen scheint.',
-    'floh vor einer arrangierten Heirat und suchte ein neues Leben voller Abenteuer.',
-    'machte einen Pakt mit einer unbekannten Macht, deren Preis noch nicht enthüllt wurde.'
-];
+const classNames = {
+    krieger: 'Krieger',
+    magier: 'Magier',
+    schurke: 'Schurke',
+    kleriker: 'Kleriker',
+    waldläufer: 'Waldläufer',
+    barde: 'Barde',
+    paladin: 'Paladin'
+};
 
 function setCharacterType(type) {
     currentCharacter.type = type;
@@ -142,25 +229,151 @@ function rollAttributes() {
         currentCharacter.attributes[attr] = value;
         updateAttributeDisplay(attr, value);
     });
+    showNotification('Attribute gewürfelt! 🎲');
 }
 
-function generateBackground() {
+// AI-Powered Background Generation
+async function generateBackground() {
+    const btn = event.target;
     const race = document.getElementById('charRace').value;
     const charClass = document.getElementById('charClass').value;
-    const name = document.getElementById('charName').value || 'Der Held';
+    const name = document.getElementById('charName').value || 'Ein Held';
+    const type = currentCharacter.type;
 
-    const background = backgrounds[Math.floor(Math.random() * backgrounds.length)];
-    const fullBackground = `${name} ${background} Als ${charClass} der ${race}-Rasse strebt er/sie nun nach Größe und Ruhm.`;
+    const systemPrompt = `Du bist ein kreativer Fantasy-Autor für D&D/Pen&Paper Rollenspiele. 
+Erstelle kurze, packende Hintergrundgeschichten für Charaktere. 
+Antworte NUR mit der Geschichte, ohne Einleitung oder Erklärung.
+Die Geschichte sollte 3-4 Sätze lang sein und einen interessanten Hook enthalten.`;
 
-    document.getElementById('charBackground').value = fullBackground;
-    currentCharacter.background = fullBackground;
+    const userMessage = `Erstelle eine Hintergrundgeschichte für einen ${type === 'npc' ? 'NPC' : 'Spielercharakter'}:
+Name: ${name}
+Rasse: ${raceNames[race]}
+Klasse: ${classNames[charClass]}
+
+Die Geschichte soll mysteriös und interessant sein, mit einem persönlichen Antrieb oder Geheimnis.`;
+
+    try {
+        showLoading(btn, true);
+        btn.textContent = '⏳ Generiere...';
+
+        const background = await callPerplexityAPI(systemPrompt, userMessage);
+        document.getElementById('charBackground').value = background;
+        currentCharacter.background = background;
+
+        showNotification('Hintergrund generiert! ✨');
+    } catch (error) {
+        showNotification(error.message, 'error');
+    } finally {
+        showLoading(btn, false);
+        btn.textContent = '✨ Generieren';
+    }
 }
 
-function generateAvatar() {
+// AI-Powered Random Character
+async function generateRandomCharacter() {
+    const btn = event.target;
+
+    const systemPrompt = `Du bist ein D&D Charaktergenerator. Erstelle einen zufälligen, interessanten Charakter.
+Antworte NUR im folgenden JSON-Format, ohne zusätzlichen Text:
+{
+  "name": "Fantasiename",
+  "race": "mensch|elf|zwerg|ork|halbling|tiefling|dragonborn",
+  "class": "krieger|magier|schurke|kleriker|waldläufer|barde|paladin",
+  "type": "pc|npc",
+  "background": "2-3 Sätze Hintergrundgeschichte",
+  "str": 8-18,
+  "dex": 8-18,
+  "con": 8-18,
+  "int": 8-18,
+  "wis": 8-18,
+  "cha": 8-18
+}`;
+
+    const userMessage = `Generiere einen komplett zufälligen D&D Charakter. Sei kreativ mit dem Namen und der Hintergrundgeschichte!`;
+
+    try {
+        showLoading(btn, true);
+        btn.textContent = '⏳ Generiere...';
+
+        const response = await callPerplexityAPI(systemPrompt, userMessage);
+
+        // Parse JSON from response
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('Ungültiges Format von der API');
+
+        const char = JSON.parse(jsonMatch[0]);
+
+        // Apply to form
+        document.getElementById('charName').value = char.name;
+        document.getElementById('charRace').value = char.race;
+        document.getElementById('charClass').value = char.class;
+        document.getElementById('charBackground').value = char.background;
+
+        setCharacterType(char.type);
+
+        // Attributes
+        currentCharacter.attributes = {
+            str: char.str || 10,
+            dex: char.dex || 10,
+            con: char.con || 10,
+            int: char.int || 10,
+            wis: char.wis || 10,
+            cha: char.cha || 10
+        };
+
+        ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach(attr => {
+            updateAttributeDisplay(attr, currentCharacter.attributes[attr]);
+        });
+
+        currentCharacter.background = char.background;
+
+        // Generate avatar emoji
+        generateAvatarEmoji();
+
+        showNotification('Charakter generiert! 🧙‍♂️');
+    } catch (error) {
+        console.error(error);
+        showNotification('Fehler: ' + error.message, 'error');
+        // Fallback to local generation
+        generateRandomCharacterLocal();
+    } finally {
+        showLoading(btn, false);
+        btn.textContent = '🎲 Zufällig';
+    }
+}
+
+function generateRandomCharacterLocal() {
+    const race = document.getElementById('charRace');
+    const charClass = document.getElementById('charClass');
+
+    const races = [...race.options].map(o => o.value);
+    const classes = [...charClass.options].map(o => o.value);
+
+    race.value = races[Math.floor(Math.random() * races.length)];
+    charClass.value = classes[Math.floor(Math.random() * classes.length)];
+
+    const namesByRace = {
+        mensch: ['Aldric', 'Elara', 'Marcus', 'Lydia', 'Thorin', 'Mira'],
+        elf: ['Aelindor', 'Lirael', 'Thalion', 'Elowen', 'Faelar', 'Ithilwen'],
+        zwerg: ['Durin', 'Helga', 'Thorak', 'Bruni', 'Gimrak', 'Hilda'],
+        ork: ['Grakk', 'Urga', 'Thok', 'Mogra', 'Zulgash', 'Shara'],
+        halbling: ['Bilbo', 'Rosie', 'Merry', 'Poppy', 'Pippin', 'Daisy'],
+        tiefling: ['Morthos', 'Lilith', 'Zariel', 'Nyx', 'Damien', 'Seraphina'],
+        dragonborn: ['Rhogar', 'Sora', 'Torinn', 'Mishann', 'Bharash', 'Kava']
+    };
+
+    const names = namesByRace[race.value] || namesByRace.mensch;
+    document.getElementById('charName').value = names[Math.floor(Math.random() * names.length)];
+
+    rollAttributes();
+    generateAvatarEmoji();
+    setCharacterType(Math.random() > 0.3 ? 'pc' : 'npc');
+}
+
+function generateAvatarEmoji() {
     const race = document.getElementById('charRace').value;
     const charClass = document.getElementById('charClass').value;
 
-    // Emoji-basierte Avatare als Fallback
     const avatarEmojis = {
         mensch: { krieger: '⚔️🧔', magier: '🧙‍♂️', schurke: '🗡️🥷', kleriker: '⛪✨', waldläufer: '🏹🌲', barde: '🎸🎭', paladin: '🛡️✝️' },
         elf: { krieger: '🧝⚔️', magier: '🧝‍♀️✨', schurke: '🧝🗡️', kleriker: '🧝‍♀️🌟', waldläufer: '🧝🏹', barde: '🧝🎵', paladin: '🧝🛡️' },
@@ -177,35 +390,9 @@ function generateAvatar() {
     currentCharacter.avatar = emoji;
 }
 
-function generateRandomCharacter() {
-    const race = document.getElementById('charRace');
-    const charClass = document.getElementById('charClass');
-
-    // Random race and class
-    const races = [...race.options].map(o => o.value);
-    const classes = [...charClass.options].map(o => o.value);
-
-    const randomRace = races[Math.floor(Math.random() * races.length)];
-    const randomClass = classes[Math.floor(Math.random() * classes.length)];
-
-    race.value = randomRace;
-    charClass.value = randomClass;
-
-    // Random name
-    const names = namesByRace[randomRace] || namesByRace.mensch;
-    document.getElementById('charName').value = names[Math.floor(Math.random() * names.length)];
-
-    // Random attributes
-    rollAttributes();
-
-    // Random background
-    generateBackground();
-
-    // Generate avatar
-    generateAvatar();
-
-    // Random type (70% PC, 30% NPC)
-    setCharacterType(Math.random() > 0.3 ? 'pc' : 'npc');
+function generateAvatar() {
+    generateAvatarEmoji();
+    showNotification('Avatar generiert! 🎨');
 }
 
 function addInventoryItem() {
@@ -259,7 +446,7 @@ document.getElementById('characterForm').addEventListener('submit', function (e)
     renderCharacterList();
     resetCharacterForm();
 
-    alert('Charakter gespeichert! ⚔️');
+    showNotification('Charakter gespeichert! ⚔️');
 });
 
 function resetCharacterForm() {
@@ -303,7 +490,7 @@ function renderCharacterList() {
                 <div class="char-avatar">${char.avatar || '👤'}</div>
                 <div class="char-info">
                     <h4>${char.name}</h4>
-                    <p>${char.race} ${char.charClass}</p>
+                    <p>${raceNames[char.race] || char.race} ${classNames[char.charClass] || char.charClass}</p>
                     <span class="char-type-badge ${char.type}">${char.type.toUpperCase()}</span>
                 </div>
             </div>
@@ -346,7 +533,6 @@ function editCharacter(id) {
             document.getElementById('avatarPreview').innerHTML = `<span style="font-size: 3rem;">${char.avatar}</span>`;
         }
 
-        // Scroll to form
         document.querySelector('.character-form-panel').scrollIntoView({ behavior: 'smooth' });
     }
 }
@@ -356,53 +542,165 @@ function deleteCharacter(id) {
         const characters = getData(STORAGE_KEYS.characters).filter(c => c.id !== id);
         saveData(STORAGE_KEYS.characters, characters);
         renderCharacterList();
+        showNotification('Charakter gelöscht 🗑️');
     }
 }
 
 // ========================================
-// Story System
+// Story System with AI
 // ========================================
-const storyTemplates = {
-    fantasy: {
-        hooks: [
-            'Ein alter Zauberer bittet die Gruppe um Hilfe bei der Suche nach einem verlorenen Artefakt.',
-            'Gerüchte über einen Drachen, der ein nahegelegenes Dorf bedroht, erreichen die Helden.',
-            'Eine mysteriöse Karte führt zu einem vergessenen Tempel voller Schätze und Gefahren.'
-        ],
-        scenes: [
-            { title: 'Die Taverne des Schicksals', desc: 'Die Helden treffen sich in einer heruntergekommenen Taverne, wo sie ihren Auftrag erhalten.' },
-            { title: 'Der dunkle Wald', desc: 'Auf dem Weg zum Ziel müssen sie einen von Kreaturen bewohnten Wald durchqueren.' },
-            { title: 'Die vergessene Ruine', desc: 'Am Ziel angekommen, finden sie eine alte Ruine voller Rätsel und Fallen.' },
-            { title: 'Die finale Konfrontation', desc: 'Der Endboss erwartet sie im Herzen der Ruine.' }
-        ]
-    },
-    'dark-fantasy': {
-        hooks: [
-            'Eine Seuche breitet sich aus und die Helden müssen die Quelle finden.',
-            'Der Nekromant im Turm weckt die Toten - jemand muss ihn aufhalten.',
-            'Alpträume plagen das Königreich und der Ursprung liegt in einer anderen Dimension.'
-        ],
-        scenes: [
-            { title: 'Vorboten des Unheils', desc: 'Überall sterben Menschen und die Zeichen deuten auf dunkle Magie hin.' },
-            { title: 'Die Pestlande', desc: 'Das verdorbene Land zu durchqueren ist eine Prüfung für Körper und Geist.' },
-            { title: 'Der Schattentempel', desc: 'Ein Tempel der Finsternis birgt die Antworten - und tödliche Gefahren.' },
-            { title: 'Das ultimative Opfer', desc: 'Um das Böse zu besiegen, muss ein großes Opfer gebracht werden.' }
-        ]
-    },
-    horror: {
-        hooks: [
-            'Eine Einladung zu einem verlassenen Herrenhaus erweist sich als tödliche Falle.',
-            'Kinder verschwinden im Dorf und die Spur führt zu einem alten Brunnen.',
-            'Das Schiff, das sie gebucht haben, hat ein dunkles Geheimnis.'
-        ],
-        scenes: [
-            { title: 'Erste Anzeichen', desc: 'Seltsame Ereignisse deuten darauf hin, dass etwas nicht stimmt.' },
-            { title: 'Der Wahnsinn beginnt', desc: 'Die Realität verschwimmt und Paranoia breitet sich aus.' },
-            { title: 'Die schreckliche Wahrheit', desc: 'Das wahre Ausmaß des Horrors wird enthüllt.' },
-            { title: 'Flucht oder Kampf', desc: 'Die Helden müssen eine Entscheidung treffen, die alles verändert.' }
-        ]
+async function generateStory() {
+    const btn = event.target;
+    const title = document.getElementById('storyTitle').value || 'Das namenlose Abenteuer';
+    const genre = document.getElementById('storyGenre').value;
+    const tone = document.getElementById('storyTone').value;
+    const length = document.getElementById('storyLength').value;
+
+    const selectedChars = [...document.querySelectorAll('.story-char-checkbox:checked')]
+        .map(cb => {
+            const characters = getData(STORAGE_KEYS.characters);
+            return characters.find(c => c.id === parseInt(cb.value));
+        })
+        .filter(Boolean);
+
+    const charInfo = selectedChars.length > 0
+        ? `Beteiligte Charaktere: ${selectedChars.map(c => `${c.name} (${raceNames[c.race]} ${classNames[c.charClass]})`).join(', ')}`
+        : 'Keine spezifischen Charaktere vorgegeben.';
+
+    const lengthInfo = {
+        oneshot: '1 Session, 2-3 Szenen',
+        short: '2-3 Sessions, 4-5 Szenen',
+        campaign: '10+ Sessions, 6-8 Hauptszenen'
+    };
+
+    const systemPrompt = `Du bist ein erfahrener D&D Dungeon Master und Autor von Fantasy-Abenteuern.
+Erstelle eine strukturierte Abenteuergeschichte im JSON-Format.
+Antworte NUR mit dem JSON, ohne zusätzlichen Text oder Markdown.`;
+
+    const userMessage = `Erstelle ein ${genre} Abenteuer mit folgenden Details:
+Titel: ${title}
+Genre: ${genre}
+Ton: ${tone}
+Länge: ${lengthInfo[length]}
+${charInfo}
+
+Antworte im folgenden JSON-Format:
+{
+  "title": "Titel",
+  "synopsis": "3-4 Sätze Zusammenfassung",
+  "hook": "Der Einstieg/Aufhänger für die Spieler",
+  "scenes": [
+    {"title": "Szenenname", "description": "Detaillierte Beschreibung", "challenge": "Herausforderung/Encounter"}
+  ],
+  "npcs": [
+    {"name": "NPC Name", "role": "Rolle", "motivation": "Motivation"}
+  ],
+  "climax": "Beschreibung des Höhepunkts",
+  "rewards": ["Belohnung 1", "Belohnung 2"]
+}`;
+
+    try {
+        showLoading(btn, true);
+        btn.textContent = '⏳ Generiere Story...';
+
+        const response = await callPerplexityAPI(systemPrompt, userMessage);
+
+        // Parse JSON
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('Ungültiges Format');
+
+        const story = JSON.parse(jsonMatch[0]);
+        story.genre = genre;
+        story.tone = tone;
+        story.length = length;
+
+        // Display story
+        const content = document.getElementById('storyContent');
+        content.innerHTML = `
+            <h4>📜 ${story.title}</h4>
+            <p><strong>Synopsis:</strong> ${story.synopsis}</p>
+            
+            <h4>🎣 Aufhänger</h4>
+            <p>${story.hook}</p>
+            
+            <h4>🎭 Szenen</h4>
+            ${story.scenes.map((scene, i) => `
+                <div style="margin-bottom: 16px; padding: 12px; background: var(--color-bg-dark); border-radius: 8px;">
+                    <strong>Szene ${i + 1}: ${scene.title}</strong>
+                    <p style="margin: 8px 0;">${scene.description}</p>
+                    <p style="color: var(--color-accent);">⚔️ ${scene.challenge}</p>
+                </div>
+            `).join('')}
+            
+            ${story.npcs && story.npcs.length > 0 ? `
+            <h4>👥 NPCs</h4>
+            ${story.npcs.map(npc => `
+                <div style="margin-bottom: 8px;">
+                    <strong>${npc.name}</strong> - ${npc.role}
+                    <p style="font-size: 0.9rem; color: var(--color-text-muted);">${npc.motivation}</p>
+                </div>
+            `).join('')}
+            ` : ''}
+            
+            <h4>🔥 Höhepunkt</h4>
+            <p>${story.climax}</p>
+            
+            <h4>🏆 Belohnungen</h4>
+            <ul>${story.rewards.map(r => `<li>${r}</li>`).join('')}</ul>
+        `;
+
+        document.getElementById('storyPreview').classList.remove('hidden');
+        window.currentStory = story;
+
+        showNotification('Story generiert! 📖');
+    } catch (error) {
+        console.error(error);
+        showNotification('Fehler: ' + error.message, 'error');
+        // Fallback
+        generateStoryLocal();
+    } finally {
+        showLoading(btn, false);
+        btn.textContent = '✨ Geschichte generieren';
     }
-};
+}
+
+function generateStoryLocal() {
+    const title = document.getElementById('storyTitle').value || 'Das namenlose Abenteuer';
+    const genre = document.getElementById('storyGenre').value;
+
+    const templates = {
+        fantasy: {
+            hook: 'Ein alter Zauberer bittet die Gruppe um Hilfe bei der Suche nach einem verlorenen Artefakt.',
+            scenes: [
+                { title: 'Die Taverne des Schicksals', description: 'Die Helden treffen sich in einer heruntergekommenen Taverne.', challenge: 'Social Encounter mit dem Auftraggeber' },
+                { title: 'Der dunkle Wald', description: 'Ein von Kreaturen bewohnter Wald muss durchquert werden.', challenge: 'Kampf gegen Goblins' },
+                { title: 'Die vergessene Ruine', description: 'Eine alte Ruine voller Rätsel und Fallen.', challenge: 'Puzzle-Raum' },
+                { title: 'Die finale Konfrontation', description: 'Der Endboss erwartet sie.', challenge: 'Boss-Kampf' }
+            ]
+        }
+    };
+
+    const template = templates[genre] || templates.fantasy;
+    const story = {
+        title,
+        synopsis: template.hook,
+        scenes: template.scenes,
+        genre,
+        climax: 'Ein epischer Kampf entscheidet über das Schicksal.',
+        rewards: ['Gold', 'Magisches Item', 'Erfahrungspunkte']
+    };
+
+    const content = document.getElementById('storyContent');
+    content.innerHTML = `
+        <h4>📜 ${story.title}</h4>
+        <p>${story.synopsis}</p>
+        <h4>🎭 Szenen</h4>
+        ${story.scenes.map((s, i) => `<p><strong>Szene ${i + 1}:</strong> ${s.title} - ${s.description}</p>`).join('')}
+    `;
+
+    document.getElementById('storyPreview').classList.remove('hidden');
+    window.currentStory = story;
+}
 
 function renderStoryCharacterSelect() {
     const characters = getData(STORAGE_KEYS.characters);
@@ -414,48 +712,6 @@ function renderStoryCharacterSelect() {
             <span>${char.avatar || '👤'} ${char.name}</span>
         </label>
     `).join('') || '<p style="color: var(--color-text-muted);">Erstelle zuerst Charaktere</p>';
-}
-
-function generateStory() {
-    const title = document.getElementById('storyTitle').value || 'Das namenlose Abenteuer';
-    const genre = document.getElementById('storyGenre').value;
-    const tone = document.getElementById('storyTone').value;
-    const length = document.getElementById('storyLength').value;
-
-    const template = storyTemplates[genre] || storyTemplates.fantasy;
-    const hook = template.hooks[Math.floor(Math.random() * template.hooks.length)];
-
-    const story = {
-        title,
-        genre,
-        tone,
-        length,
-        synopsis: hook,
-        scenes: template.scenes.slice(0, length === 'oneshot' ? 2 : length === 'short' ? 3 : 4)
-    };
-
-    // Display story
-    const content = document.getElementById('storyContent');
-    content.innerHTML = `
-        <h4>📜 Synopsis</h4>
-        <p>${story.synopsis}</p>
-        
-        <h4>🎭 Szenen</h4>
-        ${story.scenes.map((scene, i) => `
-            <div style="margin-bottom: 12px;">
-                <strong>Szene ${i + 1}: ${scene.title}</strong>
-                <p style="margin-top: 4px;">${scene.desc}</p>
-            </div>
-        `).join('')}
-        
-        <h4>ℹ️ Details</h4>
-        <p>Genre: ${genre} | Ton: ${tone} | Länge: ${length}</p>
-    `;
-
-    document.getElementById('storyPreview').classList.remove('hidden');
-
-    // Store for saving
-    window.currentStory = story;
 }
 
 function saveStory() {
@@ -475,7 +731,7 @@ function saveStory() {
     document.getElementById('storyPreview').classList.add('hidden');
     document.getElementById('storyForm').reset();
 
-    alert('Geschichte gespeichert! 📖');
+    showNotification('Geschichte gespeichert! 📖');
 }
 
 function renderStoryList() {
@@ -483,7 +739,7 @@ function renderStoryList() {
     const list = document.getElementById('storyList');
 
     if (stories.length === 0) {
-        list.innerHTML = '<p style="color: var(--color-text-muted); text-align: center; padding: 40px;">Noch keine Geschichten. Generiere deine erste!</p>';
+        list.innerHTML = '<p style="color: var(--color-text-muted); text-align: center; padding: 40px;">Noch keine Geschichten.</p>';
         return;
     }
 
@@ -491,12 +747,12 @@ function renderStoryList() {
         <div class="story-card">
             <h4>📖 ${story.title}</h4>
             <div class="story-meta">
-                <span>🎭 ${story.genre}</span>
+                <span>🎭 ${story.genre || 'Fantasy'}</span>
                 <span>📅 ${new Date(story.createdAt).toLocaleDateString('de-DE')}</span>
             </div>
-            <p style="font-size: 0.9rem; color: var(--color-text-muted); margin-bottom: 12px;">${story.synopsis.substring(0, 100)}...</p>
+            <p style="font-size: 0.9rem; color: var(--color-text-muted); margin-bottom: 12px;">${(story.synopsis || '').substring(0, 100)}...</p>
             <div class="story-card-actions">
-                <button class="btn btn-secondary btn-small" onclick="viewStory(${story.id})">👁️ Ansehen</button>
+                <button class="btn btn-secondary btn-small" onclick="viewStory(${story.id})">👁️</button>
                 <button class="btn btn-small" style="background: var(--color-red);" onclick="deleteStory(${story.id})">🗑️</button>
             </div>
         </div>
@@ -511,16 +767,9 @@ function viewStory(id) {
         window.currentStory = story;
         const content = document.getElementById('storyContent');
         content.innerHTML = `
-            <h4>📜 Synopsis</h4>
+            <h4>📜 ${story.title}</h4>
             <p>${story.synopsis}</p>
-            
-            <h4>🎭 Szenen</h4>
-            ${story.scenes.map((scene, i) => `
-                <div style="margin-bottom: 12px;">
-                    <strong>Szene ${i + 1}: ${scene.title}</strong>
-                    <p style="margin-top: 4px;">${scene.desc}</p>
-                </div>
-            `).join('')}
+            ${story.scenes ? story.scenes.map((s, i) => `<p><strong>Szene ${i + 1}:</strong> ${s.title} - ${s.description}</p>`).join('') : ''}
         `;
         document.getElementById('storyPreview').classList.remove('hidden');
     }
@@ -531,29 +780,29 @@ function deleteStory(id) {
         const stories = getData(STORAGE_KEYS.stories).filter(s => s.id !== id);
         saveData(STORAGE_KEYS.stories, stories);
         renderStoryList();
+        showNotification('Geschichte gelöscht 🗑️');
     }
 }
 
 // ========================================
-// Table System
+// Table System with AI Game Master
 // ========================================
 let gameSession = {
     story: null,
     characters: [],
     messages: [],
-    currentScene: null
+    currentScene: null,
+    sceneIndex: 0
 };
 
 function renderTableSetup() {
     const stories = getData(STORAGE_KEYS.stories);
     const characters = getData(STORAGE_KEYS.characters);
 
-    // Stories dropdown
     const storySelect = document.getElementById('tableStorySelect');
     storySelect.innerHTML = '<option value="">-- Geschichte wählen --</option>' +
         stories.map(s => `<option value="${s.id}">${s.title}</option>`).join('');
 
-    // Characters checkboxes
     const charSelect = document.getElementById('tableCharacterSelect');
     charSelect.innerHTML = characters.map(char => `
         <label class="char-select-item">
@@ -568,12 +817,12 @@ function startSession() {
     const selectedChars = [...document.querySelectorAll('.table-char-checkbox:checked')].map(cb => parseInt(cb.value));
 
     if (!storyId) {
-        alert('Bitte wähle eine Geschichte aus!');
+        showNotification('Bitte wähle eine Geschichte aus!', 'error');
         return;
     }
 
     if (selectedChars.length === 0) {
-        alert('Bitte wähle mindestens einen Charakter aus!');
+        showNotification('Bitte wähle mindestens einen Charakter aus!', 'error');
         return;
     }
 
@@ -583,26 +832,23 @@ function startSession() {
     gameSession.story = stories.find(s => s.id === parseInt(storyId));
     gameSession.characters = characters.filter(c => selectedChars.includes(c.id));
     gameSession.messages = [];
-    gameSession.currentScene = gameSession.story.scenes[0];
+    gameSession.sceneIndex = 0;
+    gameSession.currentScene = gameSession.story.scenes?.[0] || { title: 'Beginn', description: gameSession.story.synopsis };
 
-    // Update UI
     document.getElementById('tableSetup').classList.add('hidden');
     document.getElementById('gameView').classList.remove('hidden');
 
-    // Update character select in chat
     const speakerSelect = document.getElementById('chatSpeaker');
     speakerSelect.innerHTML = '<option value="gm">🎭 Spielleiter</option>' +
         gameSession.characters.map(c => `<option value="${c.id}">${c.avatar || '👤'} ${c.name}</option>`).join('');
 
-    // Show active characters
     document.getElementById('activeCharactersList').innerHTML =
         gameSession.characters.map(c => `<span class="active-char-badge">${c.avatar || '👤'} ${c.name}</span>`).join('');
 
-    // Initial scene
     updateSceneDisplay();
 
-    // Welcome message
-    addChatMessage('narrator', 'KI-Erzähler', `Willkommen zu "${gameSession.story.title}"! ${gameSession.story.synopsis}`);
+    // AI Welcome Message
+    addChatMessage('narrator', '🤖 KI-Erzähler', `Willkommen zu "${gameSession.story.title}"! ${gameSession.story.synopsis || gameSession.story.hook || 'Das Abenteuer beginnt...'}`);
 }
 
 function updateSceneDisplay() {
@@ -610,42 +856,33 @@ function updateSceneDisplay() {
 
     document.getElementById('sceneDescription').innerHTML = `
         <h4 style="color: var(--color-primary); margin-bottom: 8px;">${gameSession.currentScene.title}</h4>
-        <p>${gameSession.currentScene.desc}</p>
+        <p>${gameSession.currentScene.description}</p>
+        ${gameSession.currentScene.challenge ? `<p style="margin-top: 8px; color: var(--color-accent);"><strong>Herausforderung:</strong> ${gameSession.currentScene.challenge}</p>` : ''}
     `;
 
-    // Scene placeholder based on title
     const sceneEmojis = {
-        'taverne': '🍺',
-        'wald': '🌲',
-        'ruine': '🏚️',
-        'tempel': '⛪',
-        'konfrontation': '⚔️',
-        'dunkel': '🌑',
-        'schiff': '🚢',
-        default: '🏰'
+        'taverne': '🍺', 'wald': '🌲', 'ruine': '🏚️', 'tempel': '⛪', 'kampf': '⚔️',
+        'dunkel': '🌑', 'schiff': '🚢', 'höhle': '🕳️', 'berg': '🏔️', 'stadt': '🏰',
+        'markt': '🏪', 'schloss': '🏯', 'friedhof': '⚰️', 'strand': '🏖️', default: '🎭'
     };
 
-    const title = gameSession.currentScene.title.toLowerCase();
+    const title = (gameSession.currentScene.title || '').toLowerCase();
     let emoji = sceneEmojis.default;
     for (const [key, value] of Object.entries(sceneEmojis)) {
-        if (title.includes(key)) {
-            emoji = value;
-            break;
-        }
+        if (title.includes(key)) { emoji = value; break; }
     }
 
     document.getElementById('sceneImage').innerHTML = `<span class="scene-placeholder">${emoji}</span>`;
 }
 
 function updateScene() {
-    if (!gameSession.story) return;
+    if (!gameSession.story?.scenes) return;
 
-    const currentIndex = gameSession.story.scenes.indexOf(gameSession.currentScene);
-    const nextIndex = (currentIndex + 1) % gameSession.story.scenes.length;
-    gameSession.currentScene = gameSession.story.scenes[nextIndex];
+    gameSession.sceneIndex = (gameSession.sceneIndex + 1) % gameSession.story.scenes.length;
+    gameSession.currentScene = gameSession.story.scenes[gameSession.sceneIndex];
 
     updateSceneDisplay();
-    addChatMessage('narrator', 'KI-Erzähler', `📍 Neue Szene: ${gameSession.currentScene.title} - ${gameSession.currentScene.desc}`);
+    addChatMessage('narrator', '🤖 KI-Erzähler', `📍 **Neue Szene: ${gameSession.currentScene.title}**\n${gameSession.currentScene.description}`);
 }
 
 function addChatMessage(role, sender, text) {
@@ -657,7 +894,7 @@ function addChatMessage(role, sender, text) {
     msgEl.className = `chat-message ${role}`;
     msgEl.innerHTML = `
         <div class="chat-sender">${sender}</div>
-        <div class="chat-text">${text}</div>
+        <div class="chat-text">${text.replace(/\n/g, '<br>')}</div>
     `;
     container.appendChild(msgEl);
     container.scrollTop = container.scrollHeight;
@@ -690,22 +927,61 @@ function handleChatKeypress(e) {
     }
 }
 
-function narratorRespond() {
+// AI Game Master Response
+async function narratorRespond() {
     if (!gameSession.story) return;
 
-    const responses = [
-        'Die Luft wird kälter. Ein seltsames Gefühl erfasst die Gruppe...',
-        'In der Ferne hört ihr ein merkwürdiges Geräusch. Was tut ihr?',
-        'Ein Schatten huscht vorbei. Irgendetwas beobachtet euch!',
-        'Die Tür knarzt auf. Dahinter liegt... das Unbekannte.',
-        'Ein NPC tritt aus dem Schatten: "Ihr sucht also das Artefakt? Folgt mir..."',
-        'Würfelt auf Wahrnehmung! (Das bedeutet, ihr solltet aufmerksam sein...)',
-        'Die Stimmung im Raum verändert sich. Magie liegt in der Luft.',
-        'Plötzlich ertönt ein lautes Krachen hinter euch!'
-    ];
+    const btn = event.target;
 
-    const response = responses[Math.floor(Math.random() * responses.length)];
-    addChatMessage('narrator', '🤖 KI-Erzähler', response);
+    // Get last few messages for context
+    const recentMessages = gameSession.messages.slice(-5).map(m => `${m.sender}: ${m.text}`).join('\n');
+
+    const charDescriptions = gameSession.characters.map(c =>
+        `${c.name} (${raceNames[c.race]} ${classNames[c.charClass]}, ${c.type.toUpperCase()})`
+    ).join(', ');
+
+    const systemPrompt = `Du bist ein kreativer und immersiver Dungeon Master für ein D&D Spiel.
+Du erzählst die Geschichte "${gameSession.story.title}" im Stil eines ${gameSession.story.tone || 'epischen'} ${gameSession.story.genre || 'Fantasy'}-Abenteuers.
+Aktuelle Szene: ${gameSession.currentScene?.title} - ${gameSession.currentScene?.description}
+Charaktere: ${charDescriptions}
+
+Regeln:
+- Antworte als Erzähler in der 3. Person
+- Beschreibe die Umgebung, NPCs und Ereignisse lebendig
+- Reagiere auf die Aktionen der Spieler
+- Stelle manchmal Fragen oder gib Entscheidungsmöglichkeiten
+- Füge gelegentlich Würfelwürfe ein (z.B. "Würfle auf Wahrnehmung!")
+- Halte Antworten bei 2-4 Sätzen
+- Sei dramatisch und atmosphärisch`;
+
+    const userMessage = `Bisheriger Chatverlauf:
+${recentMessages}
+
+Reagiere als Erzähler auf die letzte Nachricht und treibe die Geschichte voran.`;
+
+    try {
+        showLoading(btn, true);
+        btn.textContent = '⏳ Erzähler denkt...';
+
+        const response = await callPerplexityAPI(systemPrompt, userMessage);
+        addChatMessage('narrator', '🤖 KI-Erzähler', response);
+
+    } catch (error) {
+        console.error(error);
+        // Fallback responses
+        const fallbacks = [
+            'Die Luft wird kälter. Ein seltsames Gefühl erfasst die Gruppe...',
+            'In der Ferne hört ihr ein merkwürdiges Geräusch. Was tut ihr?',
+            'Ein Schatten huscht vorbei. Irgendetwas beobachtet euch!',
+            'Würfelt auf Wahrnehmung! (DC 12)',
+            'Ein NPC nähert sich: "Ihr seid also die Abenteurer? Ich habe einen Auftrag..."'
+        ];
+        addChatMessage('narrator', '🤖 KI-Erzähler', fallbacks[Math.floor(Math.random() * fallbacks.length)]);
+        showNotification('API nicht verfügbar, Fallback verwendet', 'error');
+    } finally {
+        showLoading(btn, false);
+        btn.textContent = '🤖 KI-Erzähler antworten lassen';
+    }
 }
 
 // ========================================
@@ -715,8 +991,14 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCharacterList();
     renderInventory();
 
-    // Set initial attribute values
     ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach(attr => {
         updateAttributeDisplay(attr, 10);
     });
+
+    // Check for API key
+    if (!getApiKey()) {
+        setTimeout(() => {
+            showNotification('Tipp: Hinterlege deinen Perplexity API-Key in den Einstellungen ⚙️', 'info');
+        }, 2000);
+    }
 });

@@ -26,7 +26,38 @@
             <li><a href="#" data-page="stories" class="nav-link">Geschichten</a></li>
             <li><a href="#" data-page="table" class="nav-link">Spieltisch</a></li>
         </ul>
+        <button class="btn btn-secondary btn-small settings-btn" onclick="openSettings()">⚙️ Einstellungen</button>
     </nav>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+        <div class="modal-backdrop" onclick="closeSettings()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ Einstellungen</h2>
+                <button class="modal-close" onclick="closeSettings()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Perplexity API Key</label>
+                    <input type="password" id="apiKeyInput" placeholder="pplx-xxxxxxxxxxxxxxxx">
+                    <p class="form-hint">Dein API-Key wird lokal gespeichert und nie an Dritte weitergegeben.</p>
+                </div>
+                <p class="form-info">
+                    <strong>Wozu brauche ich das?</strong><br>
+                    Der API-Key ermöglicht die KI-Funktionen: Charaktergenerierung, Story-Generierung und den
+                    KI-Spielleiter.
+                    Du kannst einen Key bei <a href="https://www.perplexity.ai/settings/api"
+                        target="_blank">perplexity.ai/settings/api</a> erstellen.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeSettings()">Abbrechen</button>
+                <button class="btn btn-primary" onclick="saveSettings()">💾 Speichern</button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Main Content -->
     <main id="app">

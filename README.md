@@ -1,4 +1,4 @@
-# DnD Story Forge
+# DnD Story Forge 🐉
 
 Eine Web-App für Pen & Paper Rollenspieler. Erstelle Charaktere, generiere Geschichten und spiele mit Freunden am virtuellen Spieltisch.
 
@@ -13,8 +13,8 @@ Eine Web-App für Pen & Paper Rollenspieler. Erstelle Charaktere, generiere Gesc
 - Wähle Rasse, Klasse und Typ
 - DnD-Attribute (STR, DEX, CON, INT, WIS, CHA) mit grafischen Balken
 - Attribute würfeln (4W6, niedrigsten weglassen)
-- Hintergrundgeschichte schreiben oder generieren lassen
-- Avatar-Generierung
+- **KI-generierte Hintergrundgeschichten** (via Perplexity)
+- **KI-generierte Avatare** (via Gemini)
 - Inventar-Verwaltung
 - Charakterliste mit Bearbeiten/Löschen
 
@@ -22,36 +22,71 @@ Eine Web-App für Pen & Paper Rollenspieler. Erstelle Charaktere, generiere Gesc
 - Wähle Genre (Fantasy, Dark Fantasy, Horror, etc.)
 - Wähle Ton (Episch, Düster, Humorvoll, Geheimnisvoll)
 - Wähle Länge (One-Shot, Kurzabenteuer, Kampagne)
-- Automatische Generierung von Synopsis und Szenen
+- **KI-generierte Abenteuer** mit Synopsis und Szenen
 - Geschichten speichern und verwalten
 
 ### 🎮 Virtueller Spieltisch
 - Geschichte und Charaktere für die Session auswählen
 - Echtzeit-Chat mit Rollenwahl (Spielleiter oder Charakter)
-- KI-Erzähler für dynamische Antworten
-- Szenen-Visualisierung mit Beschreibung
+- **KI-Spielleiter** für dynamische Antworten
+- **KI-generierte Szenenbilder** (via Gemini)
 - Szenen durchschalten
 
 ## Installation
 
-1. Öffne einfach `index.html` im Browser - keine Installation nötig!
-2. Die App speichert alle Daten im LocalStorage des Browsers.
+### 1. Backend starten
+
+```bash
+cd backend
+npm install
+```
+
+Erstelle eine `.env` Datei im `backend/` Ordner (siehe `.env.example`):
+
+```env
+PERPLEXITY_API_KEY=dein-perplexity-key
+GEMINI_API_KEY=dein-gemini-key
+PORT=4000
+```
+
+Starte den Server:
+
+```bash
+npm start
+```
+
+### 2. Frontend öffnen
+
+Öffne einfach `index.html` im Browser.
+
+> **Hinweis:** Das Frontend erwartet das Backend auf `http://localhost:4000`
+
+## API Keys
+
+Die API-Keys werden sicher im Backend gespeichert und sind NICHT im Git-Repository enthalten.
+
+- **Perplexity API:** [perplexity.ai/settings/api](https://www.perplexity.ai/settings/api)
+- **Gemini API:** [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
 
 ## Technologie
 
+### Frontend
 - Pure HTML5, CSS3, JavaScript (ES6+)
-- Keine Frameworks oder Build-Tools erforderlich
-- LocalStorage für Datenpersistenz
 - Responsive Design für Desktop und Tablet
+- LocalStorage für Charaktere und Geschichten
 
-## Geplante Features
+### Backend
+- Node.js + Express
+- API-Proxies für Perplexity und Gemini
+- dotenv für sichere Konfiguration
 
-- [ ] Bildgenerierung für Avatare und Szenen (API-Integration)
-- [ ] Multiplayer via WebSocket
-- [ ] Export/Import von Charakteren und Geschichten
-- [ ] Würfel-Roller mit Animation
-- [ ] Kampfsystem
-- [ ] Notizen und Handouts
+## Entwicklung
+
+```bash
+# Backend im Dev-Modus
+cd backend
+npm run dev
+```
 
 ## Lizenz
 

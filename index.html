@@ -26,42 +26,7 @@
             <li><a href="#" data-page="stories" class="nav-link">Geschichten</a></li>
             <li><a href="#" data-page="table" class="nav-link">Spieltisch</a></li>
         </ul>
-        <button class="btn btn-secondary btn-small settings-btn" onclick="openSettings()">⚙️ Einstellungen</button>
     </nav>
-
-    <!-- Settings Modal -->
-    <div id="settingsModal" class="modal hidden">
-        <div class="modal-backdrop" onclick="closeSettings()"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>⚙️ Einstellungen</h2>
-                <button class="modal-close" onclick="closeSettings()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>🔮 Perplexity API Key <span class="label-hint">(Text-KI)</span></label>
-                    <input type="password" id="apiKeyInput" placeholder="pplx-xxxxxxxxxxxxxxxx">
-                    <p class="form-hint">Für Charaktergenerierung, Story-Generierung und KI-Spielleiter.</p>
-                </div>
-                <div class="form-group">
-                    <label>🎨 Gemini API Key <span class="label-hint">(Bildgenerierung)</span></label>
-                    <input type="password" id="geminiKeyInput" placeholder="AIzaSy...">
-                    <p class="form-hint">Für Charakter-Avatare und Szenenbilder.</p>
-                </div>
-                <p class="form-info">
-                    <strong>API-Keys erhalten:</strong><br>
-                    • Perplexity: <a href="https://www.perplexity.ai/settings/api"
-                        target="_blank">perplexity.ai/settings/api</a><br>
-                    • Gemini: <a href="https://aistudio.google.com/app/apikey"
-                        target="_blank">aistudio.google.com/app/apikey</a>
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeSettings()">Abbrechen</button>
-                <button class="btn btn-primary" onclick="saveSettings()">💾 Speichern</button>
-            </div>
-        </div>
-    </div>
 
 
     <!-- Main Content -->

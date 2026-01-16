@@ -1,13 +1,11 @@
 /* ========================================
-   DnD Story Forge - JavaScript mit Perplexity AI
+   DnD Story Forge - JavaScript mit Backend API
    ======================================== */
 
 // ========================================
 // Configuration
 // ========================================
-const PERPLEXITY_API_URL = 'https://api.perplexity.ai/chat/completions';
-const PERPLEXITY_MODEL = 'llama-3.1-sonar-small-128k-online';
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+const API_BASE_URL = 'http://localhost:4000/api';
 
 // ========================================
 // Data Storage (LocalStorage)
@@ -15,9 +13,7 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 const STORAGE_KEYS = {
     characters: 'dnd_characters',
     stories: 'dnd_stories',
-    session: 'dnd_session',
-    apiKey: 'dnd_api_key',
-    geminiKey: 'dnd_gemini_key'
+    session: 'dnd_session'
 };
 
 function getData(key) {
@@ -29,104 +25,47 @@ function saveData(key, data) {
     localStorage.setItem(key, JSON.stringify(data));
 }
 
-function getApiKey() {
-    return localStorage.getItem(STORAGE_KEYS.apiKey) || '';
-}
-
-function saveApiKey(key) {
-    localStorage.setItem(STORAGE_KEYS.apiKey, key);
-}
-
-function getGeminiKey() {
-    return localStorage.getItem(STORAGE_KEYS.geminiKey) || '';
-}
-
-function saveGeminiKey(key) {
-    localStorage.setItem(STORAGE_KEYS.geminiKey, key);
-}
-
 // ========================================
-// Perplexity API Integration
+// Backend API Integration
 // ========================================
 async function callPerplexityAPI(systemPrompt, userMessage) {
-    const apiKey = getApiKey();
-
-    if (!apiKey) {
-        throw new Error('Kein API-Key hinterlegt. Bitte gehe in die Einstellungen.');
-    }
-
-    const response = await fetch(PERPLEXITY_API_URL, {
+    const response = await fetch(`${API_BASE_URL}/perplexity`, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            model: PERPLEXITY_MODEL,
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userMessage }
-            ],
-            max_tokens: 1024,
-            temperature: 0.8
-        })
+        body: JSON.stringify({ systemPrompt, userMessage })
     });
 
     if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || 'API-Fehler');
+        throw new Error(error.error || 'API-Fehler');
     }
 
     const data = await response.json();
-    return data.choices[0].message.content;
+    return data.content;
 }
 
 // ========================================
-// Gemini API Integration (Bildgenerierung)
+// Gemini Image Generation (via Backend)
 // ========================================
 async function generateImageWithGemini(prompt) {
-    const geminiKey = getGeminiKey();
-
-    if (!geminiKey) {
-        throw new Error('Kein Gemini API-Key hinterlegt. Bitte gehe in die Einstellungen.');
-    }
-
-    // Gemini 2.0 Flash with image generation
-    const response = await fetch(`${GEMINI_API_URL}?key=${geminiKey}`, {
+    const response = await fetch(`${API_BASE_URL}/gemini/image`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            contents: [{
-                parts: [{
-                    text: `Generate a fantasy RPG character portrait or scene image. Style: Digital art, vibrant colors, detailed, fantasy genre. Description: ${prompt}`
-                }]
-            }],
-            generationConfig: {
-                responseModalities: ["TEXT", "IMAGE"]
-            }
-        })
+        body: JSON.stringify({ prompt })
     });
 
     if (!response.ok) {
         const error = await response.json();
         console.error('Gemini Error:', error);
-        throw new Error(error.error?.message || 'Gemini API-Fehler');
+        throw new Error(error.error || 'Gemini API-Fehler');
     }
 
     const data = await response.json();
-
-    // Check for inline image data
-    const parts = data.candidates?.[0]?.content?.parts || [];
-    for (const part of parts) {
-        if (part.inlineData?.mimeType?.startsWith('image/')) {
-            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        }
-    }
-
-    // If no image, return null
-    return null;
+    return data.imageUrl;
 }
 
 // ========================================
@@ -163,26 +102,8 @@ document.querySelectorAll('.nav-link').forEach(link => {
 });
 
 // ========================================
-// Settings Modal
+// Notifications
 // ========================================
-function openSettings() {
-    document.getElementById('settingsModal').classList.remove('hidden');
-    document.getElementById('apiKeyInput').value = getApiKey();
-    document.getElementById('geminiKeyInput').value = getGeminiKey();
-}
-
-function closeSettings() {
-    document.getElementById('settingsModal').classList.add('hidden');
-}
-
-function saveSettings() {
-    const apiKey = document.getElementById('apiKeyInput').value.trim();
-    const geminiKey = document.getElementById('geminiKeyInput').value.trim();
-    saveApiKey(apiKey);
-    saveGeminiKey(geminiKey);
-    closeSettings();
-    showNotification('Einstellungen gespeichert! ✅');
-}
 
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
@@ -458,13 +379,6 @@ async function generateAvatar() {
     const charClass = document.getElementById('charClass').value;
     const name = document.getElementById('charName').value || 'Ein Held';
     const background = document.getElementById('charBackground').value;
-
-    // Check if Gemini key is available
-    if (!getGeminiKey()) {
-        generateAvatarEmoji();
-        showNotification('Kein Gemini-Key - Emoji verwendet', 'info');
-        return;
-    }
 
     const prompt = `Fantasy RPG character portrait: A ${raceNames[race]} ${classNames[charClass]} named ${name}. ${background ? 'Background: ' + background.substring(0, 100) : ''} Portrait style, dramatic lighting, detailed fantasy art.`;
 
@@ -979,7 +893,7 @@ function updateSceneDisplay() {
 
 // Generate scene image with Gemini
 async function generateSceneImage() {
-    if (!getGeminiKey() || !gameSession.currentScene) return;
+    if (!gameSession.currentScene) return;
 
     const sceneContainer = document.getElementById('sceneImage');
     const scene = gameSession.currentScene;

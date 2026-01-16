@@ -37,8 +37,7 @@ export default async (req, res) => {
                     { role: 'user', content: userMessage }
                 ],
                 max_tokens: 4000,
-                temperature: 0.8,
-                response_format: { type: "json_object" }
+                temperature: 0.8
             })
         });
 

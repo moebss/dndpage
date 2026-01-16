@@ -891,7 +891,7 @@ function updateSceneDisplay() {
     generateSceneImage();
 }
 
-// Generate scene image with Gemini
+// Generate scene image with Gemini (with timeout)
 async function generateSceneImage() {
     if (!gameSession.currentScene) return;
 
@@ -900,28 +900,47 @@ async function generateSceneImage() {
 
     const prompt = `Fantasy RPG scene: ${scene.title}. ${scene.description}. Atmospheric, detailed environment, fantasy art style, dramatic lighting, no text.`;
 
-    try {
-        sceneContainer.innerHTML = `<div class="scene-loading"><span>🎨</span><p>Generiere Szenenbild...</p></div>`;
+    // Helper to get emoji fallback
+    const getSceneEmoji = () => {
+        const sceneEmojis = {
+            'taverne': '🍺', 'wald': '🌲', 'ruine': '🏚️', 'tempel': '⛪', 'kampf': '⚔️',
+            'dunkel': '🌑', 'schiff': '🚢', 'höhle': '🕳️', 'berg': '🏔️', 'stadt': '🏰', default: '🎭'
+        };
+        const title = (scene.title || '').toLowerCase();
+        let emoji = sceneEmojis.default;
+        for (const [key, value] of Object.entries(sceneEmojis)) {
+            if (title.includes(key)) { emoji = value; break; }
+        }
+        return emoji;
+    };
 
+    // Set emoji fallback
+    const showEmojiFallback = () => {
+        sceneContainer.innerHTML = `<span class="scene-placeholder">${getSceneEmoji()}</span>`;
+    };
+
+    // Show loading state
+    sceneContainer.innerHTML = `<div class="scene-loading"><span>🎨</span><p>Generiere Szenenbild...</p></div>`;
+
+    // Timeout after 5 seconds - show emoji instead
+    const timeoutId = setTimeout(() => {
+        console.log('Scene image timeout - using emoji fallback');
+        showEmojiFallback();
+    }, 5000);
+
+    try {
         const imageUrl = await generateImageWithGemini(prompt);
+        clearTimeout(timeoutId);
 
         if (imageUrl) {
             sceneContainer.innerHTML = `<img src="${imageUrl}" alt="Szene" style="width: 100%; height: 100%; object-fit: cover;">`;
         } else {
-            // Fallback to emoji
-            const sceneEmojis = {
-                'taverne': '🍺', 'wald': '🌲', 'ruine': '🏚️', 'tempel': '⛪', 'kampf': '⚔️',
-                'dunkel': '🌑', 'schiff': '🚢', 'höhle': '🕳️', 'berg': '🏔️', 'stadt': '🏰', default: '🎭'
-            };
-            const title = (scene.title || '').toLowerCase();
-            let emoji = sceneEmojis.default;
-            for (const [key, value] of Object.entries(sceneEmojis)) {
-                if (title.includes(key)) { emoji = value; break; }
-            }
-            sceneContainer.innerHTML = `<span class="scene-placeholder">${emoji}</span>`;
+            showEmojiFallback();
         }
     } catch (error) {
+        clearTimeout(timeoutId);
         console.error('Scene image error:', error);
+        showEmojiFallback();
     }
 }
 

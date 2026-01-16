@@ -15,50 +15,14 @@ export default async (req, res) => {
     const { prompt } = req.body;
 
     if (!process.env.GEMINI_API_KEY) {
-        return res.status(200).json({ imageUrl: null, error: 'Gemini API Key nicht konfiguriert' });
+        console.log('No GEMINI_API_KEY configured');
+        return res.status(200).json({ imageUrl: null });
     }
 
     try {
-        // Use Imagen 3 model for image generation
+        // Use Gemini 2.0 Flash with image generation capability
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${process.env.GEMINI_API_KEY}`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    instances: [{
-                        prompt: `Fantasy RPG art, digital painting, vibrant colors, detailed: ${prompt}`
-                    }],
-                    parameters: {
-                        sampleCount: 1,
-                        aspectRatio: "1:1",
-                        safetyFilterLevel: "block_few"
-                    }
-                })
-            }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error('Imagen Error:', data);
-            // Return null image instead of error - frontend will use emoji fallback
-            return res.status(200).json({ imageUrl: null });
-        }
-
-        // Check for image in predictions
-        const predictions = data.predictions || [];
-        if (predictions.length > 0 && predictions[0].bytesBase64Encoded) {
-            return res.status(200).json({
-                imageUrl: `data:image/png;base64,${predictions[0].bytesBase64Encoded}`
-            });
-        }
-
-        // Fallback: Try Gemini 2.0 Flash experimental
-        const fallbackResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${process.env.GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${process.env.GEMINI_API_KEY}`,
             {
                 method: 'POST',
                 headers: {
@@ -67,7 +31,49 @@ export default async (req, res) => {
                 body: JSON.stringify({
                     contents: [{
                         parts: [{
-                            text: `Generate a fantasy RPG image: ${prompt}`
+                            text: `Create a detailed fantasy RPG illustration: ${prompt}. Style: Digital art, vibrant colors, dramatic lighting, high quality.`
+                        }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["IMAGE", "TEXT"],
+                        responseMimeType: "text/plain"
+                    }
+                })
+            }
+        );
+
+        const data = await response.json();
+        console.log('Gemini response status:', response.status);
+
+        if (!response.ok) {
+            console.error('Gemini Error:', JSON.stringify(data));
+            return res.status(200).json({ imageUrl: null });
+        }
+
+        // Check for image in response
+        const parts = data.candidates?.[0]?.content?.parts || [];
+        for (const part of parts) {
+            if (part.inlineData?.mimeType?.startsWith('image/')) {
+                console.log('Image generated successfully');
+                return res.status(200).json({
+                    imageUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
+                });
+            }
+        }
+
+        // Try alternative model
+        console.log('No image from primary model, trying alternative...');
+        const altResponse = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `Generate an image: ${prompt}`
                         }]
                     }],
                     generationConfig: {
@@ -77,23 +83,23 @@ export default async (req, res) => {
             }
         );
 
-        const fallbackData = await fallbackResponse.json();
-        const parts = fallbackData.candidates?.[0]?.content?.parts || [];
+        const altData = await altResponse.json();
+        const altParts = altData.candidates?.[0]?.content?.parts || [];
 
-        for (const part of parts) {
+        for (const part of altParts) {
             if (part.inlineData?.mimeType?.startsWith('image/')) {
+                console.log('Image generated from alt model');
                 return res.status(200).json({
                     imageUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
                 });
             }
         }
 
-        // No image generated - return null, frontend will use emoji
+        console.log('No image generated from any model');
         return res.status(200).json({ imageUrl: null });
 
     } catch (err) {
-        console.error('Gemini Error:', err);
-        // Return null instead of error - frontend will use emoji fallback
+        console.error('Gemini Error:', err.message);
         return res.status(200).json({ imageUrl: null });
     }
 };

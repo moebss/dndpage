@@ -29,21 +29,37 @@ function saveData(key, data) {
 // Vercel Serverless API Integration
 // ========================================
 async function callPerplexityAPI(systemPrompt, userMessage) {
-    const response = await fetch('/api/perplexity', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ systemPrompt, userMessage })
-    });
+    try {
+        const response = await fetch('/api/perplexity', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ systemPrompt, userMessage })
+        });
 
-    const data = await response.json();
+        const text = await response.text();
+        let data;
 
-    if (!response.ok) {
-        throw new Error(data.error || 'API-Fehler');
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('Invalid JSON from API:', text);
+            throw new Error('Die KI-Schnittstelle hat keine gültige Antwort gesendet.');
+        }
+
+        if (!response.ok) {
+            throw new Error(data.error || `Server-Fehler (${response.status})`);
+        }
+
+        return data.content;
+    } catch (err) {
+        console.error('Fetch error:', err);
+        if (err.message.includes('failed to fetch')) {
+            throw new Error('Verbindung zum Server fehlgeschlagen. Bitte prüfe deine Internetverbindung oder versuche es in einer Minute erneut.');
+        }
+        throw err;
     }
-
-    return data.content;
 }
 
 // ========================================

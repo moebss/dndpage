@@ -31,29 +31,34 @@ export default async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'sonar-pro',
+                model: 'sonar',
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: userMessage }
                 ],
-                max_tokens: 4000,
-                temperature: 0.8
+                max_tokens: 2000,
+                temperature: 0.7
             })
         });
 
         const text = await response.text();
-        let data;
+        console.log('Perplexity API Status:', response.status);
 
+        if (!response.ok) {
+            let errorData;
+            try {
+                errorData = JSON.parse(text);
+            } catch (e) {
+                errorData = { error: { message: text } };
+            }
+            return res.status(response.status).json({ error: errorData.error?.message || 'Perplexity API Error' });
+        }
+
+        let data;
         try {
             data = JSON.parse(text);
         } catch (e) {
-            console.error('Parse error:', text.substring(0, 200));
-            return res.status(500).json({ error: 'Invalid JSON from Perplexity' });
-        }
-
-        if (!response.ok) {
-            console.error('Perplexity error:', data);
-            return res.status(response.status).json({ error: data.error?.message || 'Perplexity API error' });
+            return res.status(500).json({ error: 'Invalid JSON response from AI' });
         }
 
         const content = data.choices?.[0]?.message?.content;

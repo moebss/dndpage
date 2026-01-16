@@ -45,7 +45,8 @@ async function callPerplexityAPI(systemPrompt, userMessage) {
             data = JSON.parse(text);
         } catch (e) {
             console.error('Invalid JSON from API:', text);
-            throw new Error('Die KI-Schnittstelle hat keine gültige Antwort gesendet.');
+            const snippet = text.substring(0, 100);
+            throw new Error(`Die KI-Antwort war ungültig. (Vorschau: ${snippet}...)`);
         }
 
         if (!response.ok) {

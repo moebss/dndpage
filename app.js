@@ -108,8 +108,11 @@ function navigateTo(pageName) {
         renderStoryCharacterSelect();
     } else if (pageName === 'table') {
         renderTableSetup();
+    } else if (pageName === 'story-select') {
+        renderStorySelectGrid();
     }
 }
+
 
 document.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', (e) => {

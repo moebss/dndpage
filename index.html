@@ -22,8 +22,9 @@
         </div>
         <ul class="nav-links">
             <li><a href="#" data-page="landing" class="nav-link active">Start</a></li>
+            <li><a href="#" data-page="story-select" class="nav-link">📖 Abenteuer</a></li>
             <li><a href="#" data-page="characters" class="nav-link">Charaktere</a></li>
-            <li><a href="#" data-page="stories" class="nav-link">Geschichten</a></li>
+            <li><a href="#" data-page="stories" class="nav-link">Generator</a></li>
             <li><a href="#" data-page="table" class="nav-link">Spieltisch</a></li>
         </ul>
     </nav>
@@ -67,6 +68,55 @@
                     <div class="feature-icon">🎮</div>
                     <h3>Virtueller Spieltisch</h3>
                     <p>Spiele mit Freunden online. KI-Erzähler und dynamische Szenen-Generierung inklusive.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Story Select Page -->
+        <section id="story-select" class="page">
+            <div class="story-grid-container">
+                <h1>Wähle dein Abenteuer</h1>
+                <p class="page-subtitle">Interaktive Geschichten mit KI-gesteuerter Handlung</p>
+                <div id="storyGrid" class="story-select-grid">
+                    <!-- Story Cards werden hier gerendert -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Immersive Story Mode -->
+        <section id="immersive" class="page immersive-mode">
+            <div class="immersive-container">
+                <!-- Story Header -->
+                <div class="immersive-header">
+                    <button class="btn-back" onclick="exitImmersive()">← Zurück</button>
+                    <div class="story-title-bar">
+                        <span id="immersiveTitle">Die Schatten der Taverne</span>
+                        <span id="chapterIndicator">Kapitel 1</span>
+                    </div>
+                    <button class="btn-menu" onclick="toggleStoryMenu()">☰</button>
+                </div>
+
+                <!-- Narrative Display Area -->
+                <div class="narrative-wrapper">
+                    <div class="narrative-content" id="narrativeContent">
+                        <!-- Story text appears here with typing animation -->
+                    </div>
+
+                    <!-- Loading Indicator -->
+                    <div class="narrative-loading hidden" id="narrativeLoading">
+                        <div class="pulse-dot"></div>
+                        <span>Die Geschichte entfaltet sich...</span>
+                    </div>
+                </div>
+
+                <!-- Choice Buttons -->
+                <div class="choices-container" id="choicesContainer">
+                    <!-- 2-4 choice buttons rendered dynamically -->
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="story-progress">
+                    <div class="progress-bar" id="storyProgressBar"></div>
                 </div>
             </div>
         </section>
@@ -379,6 +429,9 @@
         <p>DnD Story Forge © 2026 | Erschaffen für Abenteurer</p>
     </footer>
 
+    <script src="storyState.js"></script>
+    <script src="storyTemplates.js"></script>
+    <script src="immersive.js"></script>
     <script src="app.js"></script>
 </body>
 

@@ -323,7 +323,7 @@ function restartStory() {
  * Render story selection grid
  */
 function renderStorySelectGrid() {
-    const container = document.getElementById('storySelectGrid');
+    const container = document.getElementById('storyGrid');
     if (!container) return;
 
     const templates = getAllStoryTemplates();

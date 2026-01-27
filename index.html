@@ -382,42 +382,298 @@
                     <button class="btn btn-primary btn-full" onclick="startSession()">🎮 Session starten</button>
                 </div>
 
-                <!-- Game View -->
+                <!-- Game View - Friends & Fables Style -->
                 <div class="game-view hidden" id="gameView">
-                    <!-- Scene Panel -->
-                    <div class="scene-panel">
-                        <div class="scene-header">
-                            <h3>Aktuelle Szene</h3>
-                            <button class="btn btn-small btn-accent" onclick="updateScene()">🔄 Szene
-                                aktualisieren</button>
+                    <!-- Left Navigation Sidebar -->
+                    <aside class="game-nav-sidebar">
+                        <div class="nav-icon active" title="Chat" data-tab="chat">💬</div>
+                        <div class="nav-icon" title="Charaktere" data-tab="characters">👥</div>
+                        <div class="nav-icon" title="Questlog" data-tab="quests">📜</div>
+                        <div class="nav-icon" title="Welt" data-tab="world">🌍</div>
+                        <div class="nav-icon" title="Einstellungen" data-tab="settings">⚙️</div>
+                    </aside>
+
+                    <!-- Center: Story Main Area -->
+                    <section class="game-story-main">
+                        <div class="story-main-header">
+                            <div class="header-avatar" id="sessionPlayerAvatar">👤</div>
+                            <div class="header-info">
+                                <span class="player-name" id="sessionPlayerName">Abenteurer</span>
+                                <span class="mode-badge">⚔️ Abenteuer Modus</span>
+                            </div>
+                            <div class="header-actions">
+                                <button class="icon-btn" onclick="updateScene()" title="Szene aktualisieren">🔄</button>
+                            </div>
                         </div>
-                        <div class="scene-image" id="sceneImage">
+
+                        <div class="story-content-stream" id="chatMessages">
+                            <!-- Narrative messages will appear here -->
+                        </div>
+
+                        <div class="story-input-dock">
+                            <div class="input-dock-wrapper">
+                                <div class="dock-icon">📝</div>
+                                <select id="chatSpeaker" class="dock-speaker-select">
+                                    <option value="gm">🎭 Spielleiter</option>
+                                </select>
+                                <input type="text" id="chatInput" class="dock-input"
+                                    placeholder="Was tut dein Charakter..." onkeypress="handleChatKeypress(event)">
+                                <div class="dock-actions">
+                                    <button class="dock-btn" onclick="rollDice()" title="Würfeln">🎲</button>
+                                    <button class="dock-btn" title="Anhang">�</button>
+                                </div>
+                                <select class="dock-action-select">
+                                    <option>Reden</option>
+                                    <option>Handeln</option>
+                                    <option>Erzählen</option>
+                                </select>
+                                <button class="dock-continue-btn" onclick="narratorRespond()">
+                                    ▶️ Weiter
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Right Context Sidebar -->
+                    <aside class="game-context-sidebar">
+                        <div class="context-tabs">
+                            <button class="ctx-tab active" data-ctx="location">📍 Ort</button>
+                            <button class="ctx-tab" data-ctx="world">🌍 Welt</button>
+                        </div>
+
+                        <div class="context-location-header">
+                            <h3 id="currentLocationName">Szene</h3>
+                            <p id="currentLocationDesc" class="location-subtitle">Die Szene wird generiert...</p>
+                        </div>
+
+                        <div class="context-map-container" id="sceneImage">
                             <div class="scene-placeholder">🏰</div>
                         </div>
-                        <div class="scene-description" id="sceneDescription">
-                            <p>Die Szene wird generiert, sobald du die Session startest...</p>
-                        </div>
-                    </div>
 
-                    <!-- Chat Panel -->
-                    <div class="chat-panel">
-                        <div class="chat-header">
-                            <h3>Spielchat</h3>
-                            <div class="active-characters" id="activeCharactersList"></div>
+                        <div class="context-section">
+                            <div class="section-header">
+                                <h4>👥 Charaktere</h4>
+                                <span class="expand-toggle">▼</span>
+                            </div>
+                            <div class="active-characters-list" id="activeCharactersList">
+                                <!-- Characters appear here -->
+                            </div>
                         </div>
-                        <div class="chat-messages" id="chatMessages">
-                            <!-- Messages will appear here -->
+
+                        <div class="player-stats-card" id="playerStatsCard">
+                            <div class="stats-card-header" onclick="openCharacterModal()">
+                                <div class="char-avatar-small" id="mainCharAvatar">🧙</div>
+                                <div class="char-info">
+                                    <strong id="mainCharName">Charakter</strong>
+                                    <span id="mainCharClass">Klasse</span>
+                                </div>
+                            </div>
+                            <div class="stats-bars">
+                                <div class="stat-bar-group">
+                                    <label>❤️ HP</label>
+                                    <div class="progress-bar hp-bar">
+                                        <div class="progress-fill" id="hpFill" style="width: 100%;"></div>
+                                    </div>
+                                    <span class="bar-value" id="hpValue">20/20</span>
+                                </div>
+                                <div class="stat-bar-group">
+                                    <label>⭐ XP</label>
+                                    <div class="progress-bar xp-bar">
+                                        <div class="progress-fill" id="xpFill" style="width: 30%;"></div>
+                                    </div>
+                                    <span class="bar-value" id="xpValue">900 XP</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="chat-input-area">
-                            <select id="chatSpeaker" class="chat-speaker-select">
-                                <option value="gm">🎭 Spielleiter</option>
-                            </select>
-                            <input type="text" id="chatInput" placeholder="Schreibe eine Nachricht..."
-                                onkeypress="handleChatKeypress(event)">
-                            <button class="btn btn-primary" onclick="sendChatMessage()">Senden</button>
+                    </aside>
+                </div>
+
+                <!-- Character Sheet Modal -->
+                <div class="char-modal-overlay hidden" id="charModalOverlay">
+                    <div class="char-modal">
+                        <button class="modal-close-btn" onclick="closeCharacterModal()">×</button>
+
+                        <div class="char-modal-header">
+                            <div class="char-portrait-large" id="modalCharPortrait">🧙</div>
+                            <h1 id="modalCharName">Charakter Name</h1>
+                            <p class="char-subtitle" id="modalCharSubtitle">Level 1 Mensch Krieger - Neutral</p>
+                            <p class="char-quote" id="modalCharQuote">"Ein mutiger Abenteurer..."</p>
                         </div>
-                        <button class="btn btn-accent btn-full" onclick="narratorRespond()">🤖 KI-Erzähler antworten
-                            lassen</button>
+
+                        <div class="char-modal-tabs">
+                            <button class="modal-tab active" data-modal-tab="sheet">Charakterbogen</button>
+                            <button class="modal-tab" data-modal-tab="inventory">Inventar</button>
+                            <button class="modal-tab" data-modal-tab="progression">Fortschritt</button>
+                            <button class="modal-tab" data-modal-tab="relationships">Beziehungen</button>
+                            <button class="modal-tab" data-modal-tab="memories">Erinnerungen</button>
+                        </div>
+
+                        <div class="char-modal-content">
+                            <!-- Character Sheet Tab -->
+                            <div class="modal-tab-content active" id="tabSheet">
+                                <div class="sheet-grid">
+                                    <!-- Left: Details & Skills -->
+                                    <div class="sheet-left">
+                                        <section class="sheet-section">
+                                            <h3>ℹ️ Details</h3>
+                                            <div class="details-table">
+                                                <div class="detail-row"><span>Rasse</span><span id="detailRace">-</span>
+                                                </div>
+                                                <div class="detail-row"><span>Klasse</span><span
+                                                        id="detailClass">-</span></div>
+                                                <div class="detail-row"><span>Level</span><span
+                                                        id="detailLevel">-</span></div>
+                                                <div class="detail-row"><span>Gesinnung</span><span
+                                                        id="detailAlignment">-</span></div>
+                                                <div class="detail-row"><span>Fraktion</span><span
+                                                        id="detailFaction">-</span></div>
+                                                <div class="detail-row"><span>Standort</span><span
+                                                        id="detailLocation">-</span></div>
+                                            </div>
+                                        </section>
+
+                                        <section class="sheet-section">
+                                            <h3>⭐ Fertigkeiten</h3>
+                                            <div class="skills-grid" id="skillsGrid">
+                                                <div class="skill-item">Akrobatik</div>
+                                                <div class="skill-item">Tierkunde</div>
+                                                <div class="skill-item active">Arkane Kunde</div>
+                                                <div class="skill-item">Athletik</div>
+                                                <div class="skill-item active">Täuschung</div>
+                                                <div class="skill-item">Geschichte</div>
+                                                <div class="skill-item">Einschüchtern</div>
+                                                <div class="skill-item active">Nachforschung</div>
+                                                <div class="skill-item">Medizin</div>
+                                                <div class="skill-item">Naturkunde</div>
+                                                <div class="skill-item active">Wahrnehmung</div>
+                                                <div class="skill-item">Auftreten</div>
+                                                <div class="skill-item active">Überredung</div>
+                                                <div class="skill-item">Religion</div>
+                                                <div class="skill-item">Fingerfertigkeit</div>
+                                                <div class="skill-item">Heimlichkeit</div>
+                                                <div class="skill-item">Überleben</div>
+                                            </div>
+                                        </section>
+                                    </div>
+
+                                    <!-- Right: Stats -->
+                                    <div class="sheet-right">
+                                        <section class="sheet-section">
+                                            <h3>💪 Attribute</h3>
+                                            <div class="attributes-grid">
+                                                <div class="attr-card"><span class="attr-label">Stärke</span><span
+                                                        class="attr-value" id="attrStr">10</span></div>
+                                                <div class="attr-card"><span class="attr-label">Geschick</span><span
+                                                        class="attr-value" id="attrDex">10</span></div>
+                                                <div class="attr-card"><span class="attr-label">Konstitution</span><span
+                                                        class="attr-value" id="attrCon">10</span></div>
+                                                <div class="attr-card"><span class="attr-label">Intelligenz</span><span
+                                                        class="attr-value" id="attrInt">10</span></div>
+                                                <div class="attr-card"><span class="attr-label">Weisheit</span><span
+                                                        class="attr-value" id="attrWis">10</span></div>
+                                                <div class="attr-card"><span class="attr-label">Charisma</span><span
+                                                        class="attr-value" id="attrCha">10</span></div>
+                                            </div>
+                                        </section>
+
+                                        <section class="sheet-section combat-section">
+                                            <div class="combat-stats-row">
+                                                <div class="combat-stat">
+                                                    <span class="combat-label">Rüstungsklasse</span>
+                                                    <span class="combat-value" id="combatAC">10</span>
+                                                </div>
+                                                <div class="combat-stat">
+                                                    <span class="combat-label">Max HP</span>
+                                                    <span class="combat-value" id="combatMaxHP">20</span>
+                                                </div>
+                                                <div class="combat-stat">
+                                                    <span class="combat-label">Tempo</span>
+                                                    <span class="combat-value" id="combatSpeed">30</span>
+                                                </div>
+                                            </div>
+                                        </section>
+
+                                        <section class="sheet-section">
+                                            <h3>📊 Status</h3>
+                                            <div class="status-bars-modal">
+                                                <div class="modal-bar-group">
+                                                    <label>HP</label>
+                                                    <div class="modal-progress-bar hp">
+                                                        <div class="modal-progress-fill" id="modalHpFill"
+                                                            style="width: 100%;"></div>
+                                                    </div>
+                                                    <span id="modalHpText">20 / 20 HP</span>
+                                                </div>
+                                                <div class="modal-bar-group">
+                                                    <label>XP</label>
+                                                    <div class="modal-progress-bar xp">
+                                                        <div class="modal-progress-fill" id="modalXpFill"
+                                                            style="width: 33%;"></div>
+                                                    </div>
+                                                    <span id="modalXpText">900 XP</span>
+                                                </div>
+                                                <div class="modal-bar-group">
+                                                    <label>Tragkraft</label>
+                                                    <div class="modal-progress-bar load">
+                                                        <div class="modal-progress-fill" id="modalLoadFill"
+                                                            style="width: 5%;"></div>
+                                                    </div>
+                                                    <span id="modalLoadText">4 / 120 lbs</span>
+                                                </div>
+                                            </div>
+                                        </section>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Inventory Tab -->
+                            <div class="modal-tab-content" id="tabInventory">
+                                <div class="inventory-layout">
+                                    <div class="equipment-section">
+                                        <h3>🎒 Ausrüstung</h3>
+                                        <div class="equipment-slots">
+                                            <div class="equip-slot" data-slot="head">Kopf</div>
+                                            <div class="equip-slot" data-slot="body">Körper</div>
+                                            <div class="equip-slot" data-slot="hands">Hände</div>
+                                            <div class="equip-slot" data-slot="feet">Füße</div>
+                                            <div class="equip-slot" data-slot="main">Haupthand</div>
+                                            <div class="equip-slot" data-slot="off">Nebenhand</div>
+                                        </div>
+                                    </div>
+                                    <div class="currency-section">
+                                        <h3>💰 Währung</h3>
+                                        <div class="currency-grid">
+                                            <div class="currency-item"><span class="currency-val"
+                                                    id="goldPieces">0</span><span>Gold</span></div>
+                                            <div class="currency-item"><span class="currency-val"
+                                                    id="silverPieces">0</span><span>Silber</span></div>
+                                            <div class="currency-item"><span class="currency-val"
+                                                    id="copperPieces">0</span><span>Kupfer</span></div>
+                                        </div>
+                                    </div>
+                                    <div class="backpack-section">
+                                        <h3>📦 Rucksack</h3>
+                                        <div class="backpack-grid" id="backpackGrid">
+                                            <!-- Items rendered here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Placeholder tabs -->
+                            <div class="modal-tab-content" id="tabProgression">
+                                <p style="color: var(--color-text-muted); text-align:center; padding: 40px;">
+                                    Fortschritts-System kommt bald...</p>
+                            </div>
+                            <div class="modal-tab-content" id="tabRelationships">
+                                <p style="color: var(--color-text-muted); text-align:center; padding: 40px;">Beziehungen
+                                    werden später freigeschaltet...</p>
+                            </div>
+                            <div class="modal-tab-content" id="tabMemories">
+                                <p style="color: var(--color-text-muted); text-align:center; padding: 40px;">
+                                    Erinnerungen werden im Spiel gesammelt...</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -436,6 +692,7 @@
         </div>
     </footer>
 
+    <script src="auth.js"></script>
     <script src="storyState.js"></script>
     <script src="storyTemplates.js"></script>
     <script src="immersive.js"></script>

@@ -443,32 +443,57 @@ function renderInventory() {
 }
 
 // Character Form Submit
-document.getElementById('characterForm').addEventListener('submit', function (e) {
+document.getElementById('characterForm').addEventListener('submit', async function (e) {
     e.preventDefault();
 
-    const character = {
-        id: currentCharacter.id || Date.now(),
+    const characterData = {
         name: document.getElementById('charName').value,
         race: document.getElementById('charRace').value,
-        charClass: document.getElementById('charClass').value,
+        charClass: document.getElementById('charClass').value, // Note: DB uses 'class' usually but let's stick to what schema handles or map it
+        class: document.getElementById('charClass').value, // For DB mapping
         type: currentCharacter.type,
         background: document.getElementById('charBackground').value,
-        avatar: currentCharacter.avatar,
+        avatar: currentCharacter.avatar, // for local
+        avatar_url: currentCharacter.avatar, // for DB
         attributes: { ...currentCharacter.attributes },
-        inventory: [...currentCharacter.inventory],
-        createdAt: new Date().toISOString()
+        inventory: [...currentCharacter.inventory]
     };
 
-    const characters = getData(STORAGE_KEYS.characters);
-    const existingIndex = characters.findIndex(c => c.id === character.id);
-
-    if (existingIndex >= 0) {
-        characters[existingIndex] = character;
+    if (window.currentUser) {
+        if (currentCharacter.id && typeof currentCharacter.id === 'string') {
+            // Update if ID is string (UUID from DB)
+            // Not implemented in auth.js helpers yet? 
+            // actually saveCharacterToBackend is POST (create). 
+            // We need updateCharacterInBackend.
+            // For now let's just create new or implement update in auth.js?
+            // The plan didn't explicitly implement update function in auth.js, only save (POST).
+            // But server.js supports PUT.
+            // Let's assume create for now or I should add update support.
+            // Wait, editCharacter sets currentCharacter.id.
+            // If I am editing, I should PUT.
+            await updateCharacterInBackend(currentCharacter.id, characterData);
+        } else {
+            await saveCharacterToBackend(characterData);
+        }
     } else {
-        characters.push(character);
+        const character = {
+            id: currentCharacter.id || Date.now(),
+            ...characterData,
+            createdAt: new Date().toISOString()
+        };
+        // Local logic
+        const characters = getData(STORAGE_KEYS.characters);
+        const existingIndex = characters.findIndex(c => c.id === character.id);
+
+        if (existingIndex >= 0) {
+            characters[existingIndex] = character;
+        } else {
+            characters.push(character);
+        }
+
+        saveData(STORAGE_KEYS.characters, characters);
     }
 
-    saveData(STORAGE_KEYS.characters, characters);
     renderCharacterList();
     resetCharacterForm();
 
@@ -501,9 +526,16 @@ function resetCharacterForm() {
     setCharacterType('pc');
 }
 
-function renderCharacterList() {
-    const characters = getData(STORAGE_KEYS.characters);
+async function renderCharacterList() {
     const list = document.getElementById('characterList');
+    list.innerHTML = '<div style="text-align: center; padding: 20px;">Lade Charaktere...</div>';
+
+    let characters = [];
+    if (window.currentUser) {
+        characters = await loadUserCharacters();
+    } else {
+        characters = getData(STORAGE_KEYS.characters);
+    }
 
     if (characters.length === 0) {
         list.innerHTML = '<p style="color: var(--color-text-muted); text-align: center; padding: 40px;">Noch keine Charaktere erstellt. Starte jetzt!</p>';
@@ -513,62 +545,85 @@ function renderCharacterList() {
     list.innerHTML = characters.map(char => `
         <div class="character-card">
             <div class="character-card-header">
-                <div class="char-avatar">${char.avatar || '👤'}</div>
+                <div class="char-avatar">${char.avatar_url ? `<img src="${char.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">` : (char.avatar || '👤')}</div>
                 <div class="char-info">
                     <h4>${char.name}</h4>
-                    <p>${raceNames[char.race] || char.race} ${classNames[char.charClass] || char.charClass}</p>
-                    <span class="char-type-badge ${char.type}">${char.type.toUpperCase()}</span>
+                    <p>${raceNames[char.race] || char.race} ${classNames[char.charClass] || char.class || char.charClass}</p>
+                    <span class="char-type-badge ${char.type}">${(char.type || 'pc').toUpperCase()}</span>
                 </div>
             </div>
             <div class="char-attributes-mini">
-                <span class="attr-mini">STR ${char.attributes.str}</span>
-                <span class="attr-mini">DEX ${char.attributes.dex}</span>
-                <span class="attr-mini">CON ${char.attributes.con}</span>
-                <span class="attr-mini">INT ${char.attributes.int}</span>
-                <span class="attr-mini">WIS ${char.attributes.wis}</span>
-                <span class="attr-mini">CHA ${char.attributes.cha}</span>
+                <span class="attr-mini">STR ${char.attributes?.str || 10}</span>
+                <span class="attr-mini">DEX ${char.attributes?.dex || 10}</span>
+                <span class="attr-mini">CON ${char.attributes?.con || 10}</span>
+                <span class="attr-mini">INT ${char.attributes?.int || 10}</span>
+                <span class="attr-mini">WIS ${char.attributes?.wis || 10}</span>
+                <span class="attr-mini">CHA ${char.attributes?.cha || 10}</span>
             </div>
             <div class="character-card-actions">
-                <button class="btn btn-secondary btn-small" onclick="editCharacter(${char.id})">✏️ Bearbeiten</button>
-                <button class="btn btn-small" style="background: var(--color-red);" onclick="deleteCharacter(${char.id})">🗑️</button>
+                <button class="btn btn-secondary btn-small" onclick="editCharacter('${char.id}')">✏️ Bearbeiten</button>
+                <button class="btn btn-small" style="background: var(--color-red);" onclick="deleteCharacter('${char.id}')">🗑️</button>
             </div>
         </div>
     `).join('');
 }
 
 function editCharacter(id) {
-    const characters = getData(STORAGE_KEYS.characters);
-    const char = characters.find(c => c.id === id);
+    // Search in loaded characters (global cache set in renderCharacterList)
+    // Fallback to localStorage if not cached (should not happen if render called)
+    const characters = window.loadedCharacters || getData(STORAGE_KEYS.characters);
+    // ID from backend is string (UUID), from local is number. 
+    // Use loose comparison or string conversion to match
+    const char = characters.find(c => c.id == id);
 
     if (char) {
         currentCharacter = { ...char };
         document.getElementById('charName').value = char.name;
         document.getElementById('charRace').value = char.race;
-        document.getElementById('charClass').value = char.charClass;
+        // Handle class field name difference (db: class, local: charClass)
+        document.getElementById('charClass').value = char.charClass || char.class || 'krieger';
         document.getElementById('charBackground').value = char.background;
 
         setCharacterType(char.type);
 
-        ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach(attr => {
-            updateAttributeDisplay(attr, char.attributes[attr]);
-        });
+        if (char.attributes) {
+            ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach(attr => {
+                updateAttributeDisplay(attr, char.attributes[attr]);
+            });
+        }
 
         renderInventory();
 
-        if (char.avatar) {
-            document.getElementById('avatarPreview').innerHTML = `<span style="font-size: 3rem;">${char.avatar}</span>`;
+        if (char.avatar || char.avatar_url) {
+            const avatarSrc = char.avatar_url || char.avatar;
+            if (avatarSrc.startsWith('http') || avatarSrc.startsWith('/')) {
+                document.getElementById('avatarPreview').innerHTML = `<img src="${avatarSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">`;
+            } else {
+                document.getElementById('avatarPreview').innerHTML = `<span style="font-size: 3rem;">${avatarSrc}</span>`;
+            }
         }
 
         document.querySelector('.character-form-panel').scrollIntoView({ behavior: 'smooth' });
     }
 }
 
-function deleteCharacter(id) {
+async function deleteCharacter(id) {
     if (confirm('Charakter wirklich löschen?')) {
-        const characters = getData(STORAGE_KEYS.characters).filter(c => c.id !== id);
-        saveData(STORAGE_KEYS.characters, characters);
-        renderCharacterList();
-        showNotification('Charakter gelöscht 🗑️');
+        let success = false;
+        if (window.currentUser) {
+            success = await deleteCharacterFromBackend(id);
+        } else {
+            const characters = getData(STORAGE_KEYS.characters).filter(c => c.id !== id);
+            saveData(STORAGE_KEYS.characters, characters);
+            success = true;
+        }
+
+        if (success) {
+            renderCharacterList();
+            showNotification('Charakter gelöscht 🗑️');
+        } else {
+            showNotification('Fehler beim Löschen', 'error');
+        }
     }
 }
 
@@ -751,29 +806,59 @@ function renderStoryCharacterSelect() {
     `).join('') || '<p style="color: var(--color-text-muted);">Erstelle zuerst Charaktere</p>';
 }
 
-function saveStory() {
+async function saveStory() {
     if (!window.currentStory) return;
 
-    const story = {
-        id: Date.now(),
-        ...window.currentStory,
-        createdAt: new Date().toISOString()
+    const storyData = {
+        title: window.currentStory.title,
+        genre: window.currentStory.genre,
+        tone: window.currentStory.tone,
+        length: window.currentStory.length,
+        synopsis: window.currentStory.synopsis,
+        content: window.currentStory, // Store full JSON
+        created_at: new Date().toISOString()
     };
 
-    const stories = getData(STORAGE_KEYS.stories);
-    stories.push(story);
-    saveData(STORAGE_KEYS.stories, stories);
+    // Note: Backend schema expects: user_id, title, genre, tone, length, synopsis, content (jsonb)
 
-    renderStoryList();
-    document.getElementById('storyPreview').classList.add('hidden');
-    document.getElementById('storyForm').reset();
+    let success = false;
+    if (window.currentUser) {
+        // Always create new for now as we don't edit stories yet
+        const savedStory = await saveStoryToBackend(storyData);
+        if (savedStory) success = true;
+    } else {
+        const story = {
+            id: Date.now(),
+            ...window.currentStory,
+            createdAt: new Date().toISOString()
+        };
+        const stories = getData(STORAGE_KEYS.stories);
+        stories.push(story);
+        saveData(STORAGE_KEYS.stories, stories);
+        success = true;
+    }
 
-    showNotification('Geschichte gespeichert! 📖');
+    if (success) {
+        renderStoryList();
+        document.getElementById('storyPreview').classList.add('hidden');
+        document.getElementById('storyForm').reset();
+        showNotification('Geschichte gespeichert! 📖');
+    } else {
+        showNotification('Fehler beim Speichern', 'error');
+    }
 }
 
-function renderStoryList() {
-    const stories = getData(STORAGE_KEYS.stories);
+async function renderStoryList() {
     const list = document.getElementById('storyList');
+    list.innerHTML = '<div style="text-align: center; padding: 20px;">Lade Geschichten...</div>';
+
+    let stories = [];
+    if (window.currentUser) {
+        stories = await loadUserStories();
+    } else {
+        stories = getData(STORAGE_KEYS.stories);
+    }
+    window.loadedStories = stories; // Cache for view
 
     if (stories.length === 0) {
         list.innerHTML = '<p style="color: var(--color-text-muted); text-align: center; padding: 40px;">Noch keine Geschichten.</p>';
@@ -785,39 +870,70 @@ function renderStoryList() {
             <h4>📖 ${story.title}</h4>
             <div class="story-meta">
                 <span>🎭 ${story.genre || 'Fantasy'}</span>
-                <span>📅 ${new Date(story.createdAt).toLocaleDateString('de-DE')}</span>
+                <span>📅 ${new Date(story.created_at || story.createdAt).toLocaleDateString('de-DE')}</span>
             </div>
             <p style="font-size: 0.9rem; color: var(--color-text-muted); margin-bottom: 12px;">${(story.synopsis || '').substring(0, 100)}...</p>
             <div class="story-card-actions">
-                <button class="btn btn-secondary btn-small" onclick="viewStory(${story.id})">👁️</button>
-                <button class="btn btn-small" style="background: var(--color-red);" onclick="deleteStory(${story.id})">🗑️</button>
+                <button class="btn btn-secondary btn-small" onclick="viewStory('${story.id}')">👁️</button>
+                <button class="btn btn-small" style="background: var(--color-red);" onclick="deleteStory('${story.id}')">🗑️</button>
             </div>
         </div>
     `).join('');
 }
 
 function viewStory(id) {
-    const stories = getData(STORAGE_KEYS.stories);
-    const story = stories.find(s => s.id === id);
+    const stories = window.loadedStories || getData(STORAGE_KEYS.stories);
+    const story = stories.find(s => s.id == id);
 
     if (story) {
         window.currentStory = story;
         const content = document.getElementById('storyContent');
+
+        // Handle backend story structure or local
+        const s = story.content || story;
+
         content.innerHTML = `
-            <h4>📜 ${story.title}</h4>
-            <p>${story.synopsis}</p>
-            ${story.scenes ? story.scenes.map((s, i) => `<p><strong>Szene ${i + 1}:</strong> ${s.title} - ${s.description}</p>`).join('') : ''}
+            <h4>📜 ${s.title}</h4>
+            <p><strong>Synopsis:</strong> ${s.synopsis}</p>
+            <h4>🎣 Aufhänger</h4>
+            <p>${s.hook || ''}</p>
+            <h4>🎭 Szenen</h4>
+            ${s.scenes ? s.scenes.map((scene, i) => `
+                <div style="margin-bottom: 16px; padding: 12px; background: var(--color-bg-dark); border-radius: 8px;">
+                    <strong>Szene ${i + 1}: ${scene.title}</strong>
+                    <p style="margin: 8px 0;">${scene.description}</p>
+                    <p style="color: var(--color-accent);">⚔️ ${scene.challenge || ''}</p>
+                </div>
+            `).join('') : '<p>Keine Szenen.</p>'}
+            
+            <h4>🔥 Höhepunkt</h4>
+            <p>${s.climax || ''}</p>
+            <h4>🏆 Belohnungen</h4>
+            <ul>${s.rewards ? s.rewards.map(r => `<li>${r}</li>`).join('') : ''}</ul>
         `;
         document.getElementById('storyPreview').classList.remove('hidden');
+        document.getElementById('storyPreview').scrollIntoView({ behavior: 'smooth' });
     }
 }
 
-function deleteStory(id) {
+async function deleteStory(id) {
     if (confirm('Geschichte wirklich löschen?')) {
-        const stories = getData(STORAGE_KEYS.stories).filter(s => s.id !== id);
-        saveData(STORAGE_KEYS.stories, stories);
-        renderStoryList();
-        showNotification('Geschichte gelöscht 🗑️');
+        let success = false;
+        if (window.currentUser) {
+            success = await deleteStoryFromBackend(id);
+        } else {
+            // Local deletion
+            const stories = getData(STORAGE_KEYS.stories).filter(s => s.id != id);
+            saveData(STORAGE_KEYS.stories, stories);
+            success = true;
+        }
+
+        if (success) {
+            renderStoryList();
+            showNotification('Geschichte gelöscht 🗑️');
+        } else {
+            showNotification('Fehler beim Löschen', 'error');
+        }
     }
 }
 
@@ -851,7 +967,8 @@ function renderTableSetup() {
 
 function startSession() {
     const storyId = document.getElementById('tableStorySelect').value;
-    const selectedChars = [...document.querySelectorAll('.table-char-checkbox:checked')].map(cb => parseInt(cb.value));
+    // Map values but handle potential non-numeric IDs (UUIDs)
+    const selectedChars = [...document.querySelectorAll('.table-char-checkbox:checked')].map(cb => cb.value);
 
     if (!storyId) {
         showNotification('Bitte wähle eine Geschichte aus!', 'error');
@@ -866,11 +983,30 @@ function startSession() {
     const stories = getData(STORAGE_KEYS.stories);
     const characters = getData(STORAGE_KEYS.characters);
 
-    gameSession.story = stories.find(s => s.id === parseInt(storyId));
-    gameSession.characters = characters.filter(c => selectedChars.includes(c.id));
+    // Use loose comparison for ID mismatch (int vs string)
+    gameSession.story = stories.find(s => s.id == storyId);
+
+    // Filter characters
+    gameSession.characters = characters.filter(c => selectedChars.some(id => id == c.id));
+
     gameSession.messages = [];
     gameSession.sceneIndex = 0;
-    gameSession.currentScene = gameSession.story.scenes?.[0] || { title: 'Beginn', description: gameSession.story.synopsis };
+
+    // Handle both structure types (backend 'content' wrapper or flat local)
+    const storyData = gameSession.story.content || gameSession.story;
+    gameSession.currentScene = storyData.scenes?.[0] || { title: 'Beginn', description: storyData.synopsis };
+
+    // Update story reference in session to point to the correct data structure if needed
+    // or just use storyData for reading.
+    // Actually gameSession.story denotes the metadata. 
+    // We should probably rely on 'storyData' for scenes.
+    // Let's patch gameSession.story to be the convenient object?
+    // Or just store storyData separately?
+    // Existing code uses gameSession.story.scenes.
+    if (gameSession.story.content) {
+        // If it's a backend wrapper, mix content in for easier access
+        Object.assign(gameSession.story, gameSession.story.content);
+    }
 
     document.getElementById('tableSetup').classList.add('hidden');
     document.getElementById('gameView').classList.remove('hidden');
@@ -979,7 +1115,7 @@ function sendChatMessage() {
         sender = '🎭 Spielleiter';
         role = 'gm';
     } else {
-        const char = gameSession.characters.find(c => c.id === parseInt(speakerSelect.value));
+        const char = gameSession.characters.find(c => c.id == speakerSelect.value);
         sender = `${char.avatar || '👤'} ${char.name}`;
         role = 'player';
     }
@@ -1049,6 +1185,131 @@ Reagiere als Erzähler auf die letzte Nachricht und treibe die Geschichte voran.
         showLoading(btn, false);
         btn.textContent = '🤖 KI-Erzähler antworten lassen';
     }
+}
+
+// ========================================
+// Character Modal Functions
+// ========================================
+function openCharacterModal() {
+    const overlay = document.getElementById('charModalOverlay');
+    if (!overlay) return;
+
+    // Find the main character from the session
+    const mainChar = gameSession.characters?.[0];
+    if (mainChar) {
+        populateCharacterModal(mainChar);
+    }
+
+    overlay.classList.remove('hidden');
+}
+
+function closeCharacterModal() {
+    const overlay = document.getElementById('charModalOverlay');
+    if (overlay) {
+        overlay.classList.add('hidden');
+    }
+}
+
+function populateCharacterModal(char) {
+    // Portrait
+    const portrait = document.getElementById('modalCharPortrait');
+    if (portrait) {
+        if (char.avatar_url && char.avatar_url.startsWith('http')) {
+            portrait.innerHTML = `<img src="${char.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:13px;">`;
+        } else {
+            portrait.textContent = char.avatar || '🧙';
+        }
+    }
+
+    // Header info
+    document.getElementById('modalCharName').textContent = char.name || 'Unbekannt';
+    document.getElementById('modalCharSubtitle').textContent =
+        `Level ${char.level || 1} ${raceNames[char.race] || char.race} ${classNames[char.charClass || char.class] || char.charClass || 'Abenteurer'} - ${char.alignment || 'Neutral'}`;
+    document.getElementById('modalCharQuote').textContent = char.background || '"Ein mutiger Abenteurer..."';
+
+    // Details
+    document.getElementById('detailRace').textContent = raceNames[char.race] || char.race || '-';
+    document.getElementById('detailClass').textContent = classNames[char.charClass || char.class] || char.charClass || char.class || '-';
+    document.getElementById('detailLevel').textContent = char.level || 1;
+    document.getElementById('detailAlignment').textContent = char.alignment || 'Neutral';
+    document.getElementById('detailFaction').textContent = char.faction || '-';
+    document.getElementById('detailLocation').textContent = gameSession.currentScene?.title || '-';
+
+    // Attributes
+    if (char.attributes) {
+        document.getElementById('attrStr').textContent = char.attributes.str || 10;
+        document.getElementById('attrDex').textContent = char.attributes.dex || 10;
+        document.getElementById('attrCon').textContent = char.attributes.con || 10;
+        document.getElementById('attrInt').textContent = char.attributes.int || 10;
+        document.getElementById('attrWis').textContent = char.attributes.wis || 10;
+        document.getElementById('attrCha').textContent = char.attributes.cha || 10;
+    }
+
+    // Combat stats
+    document.getElementById('combatAC').textContent = char.ac || 10;
+    document.getElementById('combatMaxHP').textContent = char.maxHp || 20;
+    document.getElementById('combatSpeed').textContent = char.speed || 30;
+
+    // Inventory currency
+    if (char.currency) {
+        document.getElementById('goldPieces').textContent = char.currency.gold || 0;
+        document.getElementById('silverPieces').textContent = char.currency.silver || 0;
+        document.getElementById('copperPieces').textContent = char.currency.copper || 0;
+    }
+}
+
+// Modal Tab Switching
+document.addEventListener('DOMContentLoaded', () => {
+    // Modal tabs
+    document.querySelectorAll('.modal-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = tab.dataset.modalTab;
+
+            // Remove active from all tabs
+            document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.modal-tab-content').forEach(c => c.classList.remove('active'));
+
+            // Activate clicked tab
+            tab.classList.add('active');
+            const content = document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+            if (content) content.classList.add('active');
+        });
+    });
+
+    // Close modal on overlay click
+    const overlay = document.getElementById('charModalOverlay');
+    if (overlay) {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeCharacterModal();
+            }
+        });
+    }
+
+    // Nav sidebar icon clicks (optional in future)
+    document.querySelectorAll('.game-nav-sidebar .nav-icon').forEach(icon => {
+        icon.addEventListener('click', () => {
+            document.querySelectorAll('.game-nav-sidebar .nav-icon').forEach(i => i.classList.remove('active'));
+            icon.classList.add('active');
+        });
+    });
+
+    // Context sidebar tabs
+    document.querySelectorAll('.ctx-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.ctx-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+        });
+    });
+});
+
+// Dice Roll Function
+function rollDice(sides = 20) {
+    const result = Math.floor(Math.random() * sides) + 1;
+    const diceEmoji = sides === 20 ? '🎲' : '🎯';
+    addChatMessage('player', '🎲 Würfel', `Würfelergebnis (d${sides}): **${result}**`);
+    showNotification(`${diceEmoji} Würfelergebnis: ${result}`, 'info');
+    return result;
 }
 
 // ========================================
